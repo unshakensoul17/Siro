@@ -1,3 +1,12 @@
+---
+title: Ghost Protocol Engine
+emoji: 🚀
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+---
+
 # 🔮 Ghost Protocol
 
 > **An agentic job-search ecosystem for the 2026 algorithmic recruitment landscape.**
