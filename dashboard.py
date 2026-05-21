@@ -85,7 +85,7 @@ async def get_leads():
     """Fetches job leads sorted by discovered_at desc."""
     client = get_client()
     try:
-        resp = client.table("job_leads").select("*").order("discovered_at", desc=True).limit(100).execute()
+        resp = client.table("job_leads").select("*").order("created_at", desc=True).limit(100).execute()
         return resp.data or []
     except Exception as e:
         print(f"[Dashboard Backend] Error fetching leads: {e}")
