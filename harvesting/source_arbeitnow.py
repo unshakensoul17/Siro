@@ -13,13 +13,7 @@ logger = get_logger(__name__)
 
 BASE_URL = "https://www.arbeitnow.com/api/job-board-api"
 
-SEARCH_TERMS = [
-    "machine learning",
-    "ai engineer",
-    "data scientist",
-    "python",
-    "nlp",
-]
+from core.config import DEFAULT_SEARCH_TERMS as SEARCH_TERMS
 
 
 async def fetch_arbeitnow(search_query: str = None) -> list[dict]:

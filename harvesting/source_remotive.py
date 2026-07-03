@@ -13,14 +13,7 @@ logger = get_logger(__name__)
 
 BASE_URL = "https://remotive.com/api/remote-jobs"
 
-# Map our target queries to Remotive category slugs
-SEARCH_TERMS = [
-    "machine learning",
-    "ai engineer",
-    "data scientist",
-    "nlp",
-    "python developer",
-]
+from core.config import DEFAULT_SEARCH_TERMS as SEARCH_TERMS
 
 
 async def fetch_remotive(limit_per_term: int = 20, search_query: str = None) -> list[dict]:
