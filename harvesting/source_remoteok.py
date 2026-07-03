@@ -16,7 +16,8 @@ logger = get_logger(__name__)
 
 BASE_URL = "https://remoteok.com/api"
 
-TAGS = ["machine-learning", "python", "ai", "data-science", "nlp", "deep-learning"]
+from core.config import DEFAULT_SEARCH_TERMS
+TAGS = [term.replace(" ", "-") for term in DEFAULT_SEARCH_TERMS]
 
 
 async def fetch_remoteok(search_query: str = None) -> list[dict]:

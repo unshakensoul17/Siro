@@ -8,13 +8,7 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 BASE_URL = "https://himalayas.app/jobs/api/search"
-SEARCH_TERMS = [
-    "machine learning",
-    "ai engineer",
-    "data scientist",
-    "nlp",
-    "python developer",
-]
+from core.config import DEFAULT_SEARCH_TERMS as SEARCH_TERMS
 
 async def fetch_himalayas(limit_per_term: int = 20, search_query: str = None) -> list[dict]:
     """Fetch jobs from Himalayas Remote Jobs Search API."""

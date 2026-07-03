@@ -88,6 +88,19 @@ TARGET_TITLES: list[str] = [
     "computer vision engineer", "ai researcher",
 ]
 
+# Dynamic default search terms for harvesting engines
+_env_target_roles = os.getenv("TARGET_ROLES", "").strip()
+if _env_target_roles:
+    DEFAULT_SEARCH_TERMS = [r.strip() for r in _env_target_roles.split(",") if r.strip()]
+else:
+    DEFAULT_SEARCH_TERMS = [
+        "machine learning",
+        "ai engineer",
+        "data scientist",
+        "nlp",
+        "python developer",
+    ]
+
 # ─────────────────────────────────────────────────────────
 #  KEYWORD PRE-FILTER (Stage 1 cheap filter — no AI needed)
 # ─────────────────────────────────────────────────────────
