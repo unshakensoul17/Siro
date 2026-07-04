@@ -9,19 +9,22 @@ load_dotenv()
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
-def send_cold_email(target_email: str, subject: str, body_text: str, attachment_path: str = None) -> bool:
+def send_cold_email(target_email: str, subject: str, body_text: str, attachment_path: str = None, gmail_user: str = None, gmail_password: str = None) -> bool:
     """
-    Sends an email using the configured Gmail account via SMTP.
+    Sends an email using the provided Gmail account via SMTP.
     Returns True if successful, False otherwise.
     """
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        print("[Email Dispatcher] GMAIL_USER or GMAIL_APP_PASSWORD not set in .env")
+    user = gmail_user or GMAIL_USER
+    password = gmail_password or GMAIL_APP_PASSWORD
+
+    if not user or not password:
+        print("[Email Dispatcher] GMAIL_USER or GMAIL_APP_PASSWORD not provided")
         return False
         
     try:
         msg = EmailMessage()
         msg['Subject'] = subject
-        msg['From'] = GMAIL_USER
+        msg['From'] = user
         msg['To'] = target_email
         msg.set_content(body_text)
 
@@ -43,7 +46,7 @@ def send_cold_email(target_email: str, subject: str, body_text: str, attachment_
 
         # Send via Gmail SMTP server
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.login(user, password)
             server.send_message(msg)
             
         print(f"[Email Dispatcher] Successfully sent email to {target_email}")

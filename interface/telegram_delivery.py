@@ -299,10 +299,15 @@ async def _on_send_cold_email(context, chat_id: int, job_id: str):
         return
 
     user_id = lead.get("user_id")
+    profile = get_profile(user_id)
+    prefs = profile.get("preferences") or {}
+    gmail_user = prefs.get("llm", {}).get("gmail_user", "")
+    gmail_pass = prefs.get("llm", {}).get("gmail_app_password", "")
+
     target_email = find_company_email(company)
     
     if not target_email:
-        target_email = os.getenv("GMAIL_USER", "")
+        target_email = os.getenv("GMAIL_USER", gmail_user)
         await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Could not find recruiter email. Sending to default ({target_email}) for manual forwarding.")
     else:
         await context.bot.send_message(chat_id=chat_id, text=f"🎯 Recruiter found: {target_email}. Dispatching…")
@@ -315,7 +320,14 @@ async def _on_send_cold_email(context, chat_id: int, job_id: str):
     )
     body    = "\n".join(lines[1:]).strip() if lines[0].startswith("Subject:") else cold_email
 
-    success = send_cold_email(target_email, subject, body, resume_url)
+    success = send_cold_email(
+        target_email=target_email, 
+        subject=subject, 
+        body_text=body, 
+        attachment_path=resume_url,
+        gmail_user=gmail_user,
+        gmail_password=gmail_pass
+    )
 
     if success:
         await handle_apply(job_id)

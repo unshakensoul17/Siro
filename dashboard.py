@@ -400,14 +400,14 @@ Output ONLY the email body (with Subject line at the top), no markdown formattin
 
 
 @app.get("/api/settings")
-async def get_settings():
-    """Retrieve settings from DB (using first user for now)."""
+async def get_settings(user_id: str = Depends(get_current_user_id)):
+    """Retrieve settings from DB for the current user."""
     try:
-        resp = get_client().table("user_profiles").select("id, preferences").limit(1).execute()
-        if not resp.data:
+        profile = get_profile(user_id)
+        if not profile:
             return {}
-        user = resp.data[0]
-        prefs = user.get("preferences") or {}
+        
+        prefs = profile.get("preferences") or {}
         
         # If DB is empty, read legacy settings.json
         if not prefs:
@@ -423,17 +423,13 @@ async def get_settings():
 
 
 @app.post("/api/settings")
-async def update_settings(request: Request):
-    """Update user preferences in DB (using first user for now)."""
+async def update_settings(request: Request, user_id: str = Depends(get_current_user_id)):
+    """Update user preferences in DB for the current user."""
     try:
         data = await request.json()
-        resp = get_client().table("user_profiles").select("id").limit(1).execute()
         
-        if not resp.data:
-            raise HTTPException(status_code=404, detail="No users found to update")
-            
-        user_id = resp.data[0]["id"]
-        
+        # We can extract sensitive keys here and put them in encrypted_keys, 
+        # but for now we'll just save to preferences as requested
         update_resp = get_client().table("user_profiles").update({"preferences": data}).eq("id", user_id).execute()
         
         # Also sync to settings.json for legacy scripts until fully migrated

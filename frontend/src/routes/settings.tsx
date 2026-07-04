@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
 import {
   Settings, Key, Clock, ShieldAlert, Bell, Cpu,
-  Save, Loader2, Plus, X
+  Save, Loader2, Plus, X, Mail
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
@@ -192,6 +192,34 @@ function SettingsPage() {
                       value={localSettings.llm.gemini_api_key}
                       onChange={(e) => updateLLM('gemini_api_key', e.target.value)}
                       placeholder="AIza..."
+                      className="w-full h-11 px-4 rounded-xl glass bg-black/40 border border-white/10 focus:outline-none focus:border-neon-purple/50 font-mono text-sm"
+                    />
+                  </div>
+
+                  <hr className="border-white/10" />
+
+                  <div className="mb-2">
+                    <h3 className="text-lg font-bold flex items-center gap-2 mb-2"><Mail className="w-5 h-5 text-neon-purple" /> Email Dispatcher</h3>
+                    <p className="text-muted-foreground text-sm">Configure SMTP to enable the "Send Cold Email" feature.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Gmail Address</label>
+                    <input
+                      type="email"
+                      value={localSettings.llm.gmail_user || ""}
+                      onChange={(e) => updateLLM('gmail_user', e.target.value)}
+                      placeholder="your.email@gmail.com"
+                      className="w-full h-11 px-4 rounded-xl glass bg-black/40 border border-white/10 focus:outline-none focus:border-neon-purple/50 font-mono text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Gmail App Password</label>
+                    <input
+                      type="password"
+                      value={localSettings.llm.gmail_app_password || ""}
+                      onChange={(e) => updateLLM('gmail_app_password', e.target.value)}
+                      placeholder="abcd efgh ijkl mnop"
                       className="w-full h-11 px-4 rounded-xl glass bg-black/40 border border-white/10 focus:outline-none focus:border-neon-purple/50 font-mono text-sm"
                     />
                   </div>
