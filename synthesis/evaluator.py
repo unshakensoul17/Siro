@@ -43,7 +43,7 @@ async def evaluate_lead(
     )
     try:
         # We reuse the waterfall to be completely rate-limit safe
-        res = await run_waterfall(SYSTEM_PROMPT, user_prompt, master_resume, api_keys)
+        res = await run_waterfall(SYSTEM_PROMPT, user_prompt, master_resume, api_keys, validator_fn=None)
         if res and "ats_score" in res:
             return {
                 "ats_score": int(res.get("ats_score", 75)),

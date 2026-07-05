@@ -29,20 +29,31 @@ def send_cold_email(target_email: str, subject: str, body_text: str, attachment_
         msg.set_content(body_text)
 
         # Attach PDF if provided
-        if attachment_path and os.path.exists(attachment_path):
-            mime_type, _ = mimetypes.guess_type(attachment_path)
-            mime_type = mime_type or 'application/octet-stream'
-            maintype, subtype = mime_type.split('/', 1)
+        if attachment_path:
+            import requests
+            attachment_data = None
+            filename = ""
             
-            with open(attachment_path, 'rb') as fp:
-                attachment_data = fp.read()
-                
-            msg.add_attachment(
-                attachment_data, 
-                maintype=maintype, 
-                subtype=subtype, 
-                filename=os.path.basename(attachment_path)
-            )
+            if attachment_path.startswith("http"):
+                try:
+                    res = requests.get(attachment_path, timeout=10)
+                    if res.status_code == 200:
+                        attachment_data = res.content
+                        filename = attachment_path.split("/")[-1].split("?")[0]
+                except Exception as e:
+                    print(f"[Email Dispatcher] Failed to download PDF from URL: {e}")
+            elif os.path.exists(attachment_path):
+                with open(attachment_path, 'rb') as fp:
+                    attachment_data = fp.read()
+                filename = os.path.basename(attachment_path)
+
+            if attachment_data:
+                msg.add_attachment(
+                    attachment_data, 
+                    maintype='application', 
+                    subtype='pdf', 
+                    filename=filename or "Resume.pdf"
+                )
 
         # Send via Gmail SMTP server
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:

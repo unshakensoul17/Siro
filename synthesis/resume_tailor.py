@@ -126,10 +126,10 @@ async def run_tailoring(profile: dict, api_keys: dict = None) -> dict:
 
 async def _tailor_hot(lead: dict, master_resume: dict, api_keys: dict = None, user_id: str = None, preferences: dict = None) -> bool:
     """Full tailoring pipeline for a single HOT lead."""
-    job_id  = lead.get("job_id", "")
-    company = lead.get("company", "")
-    title   = lead.get("title", "")
-    desc    = lead.get("raw_description", "")
+    job_id  = lead.get("job_id") or ""
+    company = lead.get("company") or ""
+    title   = lead.get("title") or ""
+    desc    = lead.get("raw_description") or ""
 
     logger.info(f"HOT: tailoring '{title}' @ {company}")
 
@@ -183,10 +183,10 @@ async def _tailor_hot(lead: dict, master_resume: dict, api_keys: dict = None, us
 
 async def _tailor_warm(lead: dict, master_resume: dict, api_keys: dict = None, user_id: str = None, preferences: dict = None) -> bool:
     """Light tailoring (summary + generic email) for a single WARM lead."""
-    job_id = lead.get("job_id", "")
-    company = lead.get("company", "")
-    title   = lead.get("title", "")
-    desc    = lead.get("raw_description", "")
+    job_id = lead.get("job_id") or ""
+    company = lead.get("company") or ""
+    title   = lead.get("title") or ""
+    desc    = lead.get("raw_description") or ""
 
     logger.info(f"WARM: light tailoring '{title}' @ {company}")
 

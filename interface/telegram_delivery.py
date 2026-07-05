@@ -229,8 +229,15 @@ async def _on_create_resume(context, chat_id: int, job_id: str, query):
         return
         
     band = lead.get("score_band", "WARM")
-    master_resume = profile.get("resume_data", {})
-    preferences = profile.get("preferences", {})
+    master_resume = profile.get("resume_data") or {}
+    preferences = profile.get("preferences") or {}
+    
+    if not master_resume:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="❌ You haven't uploaded a master resume yet! Please go to your Dashboard to upload one before tailoring."
+        )
+        return
     
     try:
         if band == "HOT":
@@ -249,7 +256,7 @@ async def _on_create_resume(context, chat_id: int, job_id: str, query):
             resume_data = notes.get("updated_resume_json") or master_resume
             company = lead.get("company", "")
             
-            url = await generate_and_upload_pdf(job_id=job_id, resume_data=resume_data, company_name=company)
+            url = await generate_and_upload_pdf(job_id=job_id, resume_data=resume_data, user_id=user_id)
             if url:
                 update_job_lead(job_id, {"resume_url": url}, user_id=user_id)
                 lead["resume_url"] = url
@@ -382,17 +389,27 @@ def _build_main_keyboard(job_id: str, status: str) -> InlineKeyboardMarkup:
     buttons = []
     
     if status == "Tailored":
-        buttons.append(InlineKeyboardButton("🚀 Send Cold Email", callback_data=f"sendemail_{job_id}"))
+        buttons.append(InlineKeyboardButton("⚡ 1-Click Apply", callback_data=f"sendemail_{job_id}"))
         buttons.append(InlineKeyboardButton("📄 View PDF", callback_data=f"resume_{job_id}"))
     else:
         buttons.append(InlineKeyboardButton("📄 Create Resume", callback_data=f"createresume_{job_id}"))
         
-    buttons.append(InlineKeyboardButton("👀 Review", callback_data=f"review_{job_id}"))
-    buttons.append(InlineKeyboardButton("❌ Skip", callback_data=f"skipask_{job_id}"))
+    buttons.append(InlineKeyboardButton("🔍 Inspect & Edit", callback_data=f"review_{job_id}"))
+    buttons.append(InlineKeyboardButton("🗑️ Pass", callback_data=f"skipask_{job_id}"))
     
     # Split into rows of 2 for better UI
     rows = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
     return InlineKeyboardMarkup(rows)
+
+
+if __name__ == "__main__":
+    if not TELEGRAM_BOT_TOKEN:
+        print("Error: TELEGRAM_BOT_TOKEN is missing in .env")
+    else:
+        print("Starting Telegram Bot in Polling Mode (Local Development)...")
+        
+        # run_polling automatically drops webhook if drop_pending_updates=True is passed
+        application.run_polling(drop_pending_updates=True)
 
 
 

@@ -173,7 +173,8 @@ async def run_scoring(profile: dict) -> dict:
     """
     logger.info("=== Stage 2: Embedding & Matching started ===")
 
-    resume_data  = profile.get("resume_data", {})
+    # 1. Fetch resume & skills
+    resume_data  = profile.get("resume_data") or {}
     resume_text  = json.dumps(resume_data)
 
     # Extract skill keywords for keyword signal
@@ -203,9 +204,13 @@ async def run_scoring(profile: dict) -> dict:
         except:
             pass
             
-    scoring_settings = preferences.get("scoring", {})
-    blacklist_companies = [c.lower() for c in scoring_settings.get("blacklist_companies", [])]
-    blacklist_keywords = [k.lower() for k in scoring_settings.get("blacklist_keywords", [])]
+    scoring_settings = preferences.get("scoring") or {}
+    
+    blacklist_companies = scoring_settings.get("blacklist_companies") or []
+    blacklist_companies = [c.lower() for c in blacklist_companies if c]
+    
+    blacklist_keywords = scoring_settings.get("blacklist_keywords") or []
+    blacklist_keywords = [k.lower() for k in blacklist_keywords if k]
 
     counts = {"hot": 0, "warm": 0, "cold": 0, "reject": 0}
     
@@ -249,25 +254,25 @@ async def run_scoring(profile: dict) -> dict:
             continue
 
         band = result.get("score_band", "REJECT")
-        upd = {
-            "match_score": result["match_score"],
+        
+        update_data = {
+            "match_score": result.get("match_score", 0),
             "score_band": band,
-            "score_breakdown": result.get("score_breakdown"),
         }
 
         if band == "REJECT":
-            upd["status"] = "Dismissed"
+            update_data["status"] = "Dismissed"
             counts["reject"] += 1
         elif band in ["HOT", "WARM"]:
-            upd["status"] = "Evaluated"
+            update_data["status"] = "Evaluated"
             counts[band.lower()] += 1
             from core.database_manager import queue_delivery
             queue_delivery(job_id, user_id)
         else:
-            upd["status"] = "Evaluated"
+            update_data["status"] = "Evaluated"
             counts[band.lower()] += 1
 
-        update_tasks.append(_update_lead_async(job_id, upd, user_id))
+        update_tasks.append(_update_lead_async(job_id, update_data, user_id))
         log_stage_success(job_id, "scoring")
 
     if update_tasks:

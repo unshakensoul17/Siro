@@ -16,8 +16,7 @@ from core.logger import get_logger
 from intelligence.keyword_filter import passes_keyword_filter
 from intelligence.deduplicator import filter_new_jobs
 from harvesting.source_remotive import fetch_remotive
-from harvesting.source_remoteok import fetch_remoteok
-from harvesting.source_arbeitnow import fetch_arbeitnow
+from harvesting.source_secret import fetch_secret
 from harvesting.source_himalayas import fetch_himalayas
 from harvesting.source_hn import fetch_hn_hiring
 
@@ -42,8 +41,7 @@ async def run_harvest(include_hn: bool = False, search_query: str = None) -> lis
     # ── 1. Fetch all sources in parallel ─────────────────────────────────────
     fetch_tasks = [
         _safe_fetch("Remotive",  fetch_remotive(search_query=search_query)),
-        _safe_fetch("RemoteOK",  fetch_remoteok(search_query=search_query)),
-        _safe_fetch("Arbeitnow", fetch_arbeitnow(search_query=search_query)),
+        _safe_fetch("SecretAPI", fetch_secret(search_query=search_query)),
         _safe_fetch("Himalayas", fetch_himalayas(search_query=search_query)),
     ]
     if include_hn or _is_first_of_month():
@@ -106,8 +104,8 @@ def build_lead(job: dict) -> dict:
         "job_id":          job_uuid,
         "title":           job.get("title", "")[:300],
         "company":         job.get("company", "")[:300],
-        "job_url":         job.get("job_url", "") or f"https://unknown.local/{job_uuid}",
-        "raw_description": job.get("raw_description", ""),
+        "job_url":         job.get("job_url") or job.get("url") or f"https://unknown.local/{job_uuid}",
+        "raw_description": job.get("raw_description") or job.get("description", ""),
         "source":          job.get("source", "unknown"),
         "source_platform": job.get("source", "unknown"),  # keep legacy column in sync
         "dedup_hash":      dedup_hash,

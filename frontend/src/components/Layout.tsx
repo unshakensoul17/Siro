@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { AuthGuard } from "./AuthGuard";
 import { useAuth } from "../hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../lib/api";
 
 const NAV = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -88,8 +90,8 @@ function Sidebar() {
   );
 }
 
-function StatusPill({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: "green" | "cyan" }) {
-  const dot = color === "green" ? "bg-neon-green" : "bg-neon-cyan";
+function StatusPill({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: "green" | "cyan" | "amber" }) {
+  const dot = color === "green" ? "bg-neon-green" : color === "amber" ? "bg-neon-amber" : "bg-neon-cyan";
   return (
     <div className="hidden md:flex items-center gap-2 h-11 px-3 rounded-xl glass">
       <span className={`w-1.5 h-1.5 rounded-full ${dot} animate-pulse-glow`} />
@@ -105,6 +107,25 @@ function StatusPill({ icon: Icon, label, value, color }: { icon: any; label: str
 function TopBar() {
   const { user, signOut } = useAuth();
   
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/settings");
+      if (!res.ok) return {};
+      return res.json();
+    }
+  });
+
+  const { data: health } = useQuery({
+    queryKey: ["health"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/health");
+      if (!res.ok) return { status: "offline" };
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
   return (
     <header className="sticky top-0 z-30 h-20 glass-strong border-b border-white/5 flex items-center gap-4 px-6">
       <div className="flex-1 max-w-xl">
@@ -122,18 +143,18 @@ function TopBar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <StatusPill icon={Wifi} label="Telegram" value="Synced" color="green" />
-        <StatusPill icon={Activity} label="System" value="Nominal" color="cyan" />
-
-        <button className="relative w-11 h-11 rounded-xl glass grid place-items-center hover:bg-white/10 transition">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-neon-pink animate-pulse-glow" />
-        </button>
-
-        <button className="relative w-11 h-11 rounded-xl glass grid place-items-center hover:bg-white/10 transition">
-          <MessageCircle className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 text-[13px] font-mono font-bold w-4 h-4 rounded-full bg-neon-purple grid place-items-center">3</span>
-        </button>
+        <StatusPill 
+          icon={Wifi} 
+          label="Telegram" 
+          value={settings?.telegram_connected ? "Synced" : "Pending"} 
+          color={settings?.telegram_connected ? "green" : "amber"} 
+        />
+        <StatusPill 
+          icon={Activity} 
+          label="System" 
+          value={health?.status === "ok" ? "Nominal" : "Offline"} 
+          color={health?.status === "ok" ? "cyan" : "amber"} 
+        />
 
         <div className="flex items-center gap-2 pl-2 ml-1 border-l border-white/10">
           <div className="text-right hidden xl:block">

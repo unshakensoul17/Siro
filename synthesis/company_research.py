@@ -9,8 +9,28 @@ Module for generating AI-driven company intelligence including:
 import json
 from core.logger import get_logger
 from synthesis.llm_groq import call_groq
+import warnings
 
 logger = get_logger(__name__)
+
+def _get_realtime_news(company_name: str) -> str:
+    """Fetch real-time news headlines to inject into the LLM prompt to overcome its 2-year knowledge lag."""
+    try:
+        from duckduckgo_search import DDGS
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with DDGS() as ddgs:
+                results = list(ddgs.news(company_name, max_results=4))
+                if results:
+                    news_lines = []
+                    for r in results:
+                        date = r.get("date", "")[:10]  # Just YYYY-MM-DD
+                        title = r.get("title", "")
+                        news_lines.append(f"- [{date}] {title}")
+                    return "Here is the REAL-TIME news for this company (Use this to fill 'news_timeline' and assess 'stability'):\n" + "\n".join(news_lines)
+    except Exception as e:
+        logger.warning(f"OSINT news scrape failed for {company_name}: {e}")
+    return "Real-time news unavailable. Rely on your pre-trained knowledge."
 
 async def generate_company_intelligence(company_name: str) -> dict:
     """
@@ -34,15 +54,18 @@ The output MUST be a JSON object with this exact schema:
   }
 }
 """
-    user_prompt = f"Analyze the tech company: {company_name}"
+    realtime_context = _get_realtime_news(company_name)
+    user_prompt = f"Analyze the tech company: {company_name}\n\n{realtime_context}"
 
     try:
         data = await call_groq(system_prompt, user_prompt)
-        # Strip markdown if present
         if isinstance(data, str):
-            if data.startswith("```json"):
-                data = data[7:-3]
-            data = json.loads(data)
+            data = data.strip()
+            if data.startswith("```"):
+                data = data.strip("`")
+                if data.startswith("json"):
+                    data = data[4:]
+            data = json.loads(data.strip())
         return data
     except Exception as e:
         logger.error(f"Error generating company intelligence for {company_name}: {e}")
@@ -91,9 +114,12 @@ Output MUST be a strict JSON object with this schema:
     try:
         data = await call_groq(system_prompt, user_prompt)
         if isinstance(data, str):
-            if data.startswith("```json"):
-                data = data[7:-3]
-            data = json.loads(data)
+            data = data.strip()
+            if data.startswith("```"):
+                data = data.strip("`")
+                if data.startswith("json"):
+                    data = data[4:]
+            data = json.loads(data.strip())
         return data
     except Exception as e:
         logger.error(f"Error generating playbook for {company_name}: {e}")
