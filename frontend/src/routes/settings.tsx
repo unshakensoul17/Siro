@@ -117,6 +117,12 @@ function SettingsPage() {
             >
               <Bell className="w-4 h-4" /> Routing Matrix
             </button>
+            <button
+              onClick={() => setActiveTab('appearance')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium ${activeTab === 'appearance' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
+            >
+              <Save className="w-4 h-4" /> Resume Appearance
+            </button>
           </div>
 
           {/* Settings Panels */}
@@ -367,14 +373,21 @@ function SettingsPage() {
                       </p>
                     </div>
                     {user ? (
-                      <a
-                        href={`https://t.me/siro_command_center_bot?start=${user.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="whitespace-nowrap px-4 py-2 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-lg font-medium transition-colors shadow-lg shadow-[#0088cc]/20"
-                      >
-                        Connect Telegram
-                      </a>
+                      localSettings.telegram_connected ? (
+                        <div className="whitespace-nowrap px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg font-medium flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Connected
+                        </div>
+                      ) : (
+                        <a
+                          href={`https://t.me/siro_command_center_bot?start=${user.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="whitespace-nowrap px-4 py-2 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-lg font-medium transition-colors shadow-lg shadow-[#0088cc]/20"
+                        >
+                          Connect Telegram
+                        </a>
+                      )
                     ) : (
                       <button disabled className="px-4 py-2 bg-gray-600 text-white rounded-lg opacity-50">Log in first</button>
                     )}
@@ -400,6 +413,113 @@ function SettingsPage() {
                       <input type="checkbox" className="sr-only peer" checked={localSettings.notifications.daily_digest_email} onChange={(e) => updateNotifications('daily_digest_email', e.target.checked)} />
                       <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-green"></div>
                     </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'appearance' && (
+              <div className="glass-strong rounded-2xl p-6 md:p-8 animate-in fade-in">
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold flex items-center gap-2 mb-2"><Save className="w-5 h-5 text-neon-cyan" /> Resume Appearance</h3>
+                  <p className="text-muted-foreground text-sm">Choose the RenderCV template used to generate your PDF resumes.</p>
+                </div>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Select Template</label>
+                      <select 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-neon-cyan/50 transition-all font-mono"
+                      value={localSettings.resume_template || 'sb2nov'}
+                      onChange={(e) => setLocalSettings({ ...localSettings, resume_template: e.target.value })}
+                    >
+                      <option value="sb2nov">SB2Nov (Default Tech)</option>
+                      <option value="classic">Classic (RenderCV Standard)</option>
+                      <option value="engineeringresumes">Engineering Resumes (Dense)</option>
+                      <option value="moderncv">ModernCV (Two-column layout)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-2">This template will be applied to all newly tailored resumes.</p>
+                  </div>
+
+                  <div className="mt-6 p-6 rounded-xl border border-white/10 bg-black/40">
+                    <h4 className="text-sm font-medium text-white mb-4">Template Preview</h4>
+                    <div className="aspect-[1/1.414] w-full max-w-sm mx-auto bg-white rounded-md shadow-2xl relative overflow-hidden text-black p-4 flex flex-col gap-2">
+                      {localSettings.resume_template === 'classic' && (
+                        <>
+                          <div className="w-full text-center border-b border-black pb-2 mb-2">
+                            <div className="h-4 bg-black w-1/2 mx-auto rounded-sm mb-1"></div>
+                            <div className="h-2 bg-gray-500 w-3/4 mx-auto rounded-sm"></div>
+                          </div>
+                          <div className="h-3 bg-black w-1/4 rounded-sm mb-1"></div>
+                          <div className="h-2 bg-gray-300 w-full rounded-sm mb-0.5"></div>
+                          <div className="h-2 bg-gray-300 w-5/6 rounded-sm mb-2"></div>
+                          <div className="h-3 bg-black w-1/4 rounded-sm mb-1 mt-2"></div>
+                          <div className="flex justify-between mb-1"><div className="h-2 bg-gray-800 w-1/3 rounded-sm"></div><div className="h-2 bg-gray-500 w-1/6 rounded-sm"></div></div>
+                          <div className="h-2 bg-gray-300 w-full rounded-sm ml-2 mb-0.5"></div>
+                          <div className="h-2 bg-gray-300 w-4/5 rounded-sm ml-2 mb-2"></div>
+                        </>
+                      )}
+                      {(!localSettings.resume_template || localSettings.resume_template === 'sb2nov') && (
+                        <>
+                          <div className="w-full text-center mb-2">
+                            <div className="h-5 bg-black w-1/2 mx-auto rounded-sm mb-1"></div>
+                            <div className="h-2 bg-gray-500 w-full mx-auto rounded-sm"></div>
+                          </div>
+                          <div className="border-b-2 border-black w-full mb-2"></div>
+                          <div className="h-3 bg-black w-1/5 rounded-sm mb-1"></div>
+                          <div className="border-b border-gray-400 w-full mb-1"></div>
+                          <div className="flex justify-between mb-1"><div className="h-2.5 bg-gray-800 w-2/5 rounded-sm"></div><div className="h-2 bg-gray-500 w-1/5 rounded-sm"></div></div>
+                          <div className="flex justify-between mb-1"><div className="h-2 bg-gray-500 w-1/3 rounded-sm italic"></div></div>
+                          <div className="flex gap-2 mb-0.5"><div className="w-1 h-1 bg-black rounded-full mt-1"></div><div className="h-2 bg-gray-300 w-full rounded-sm"></div></div>
+                          <div className="flex gap-2 mb-2"><div className="w-1 h-1 bg-black rounded-full mt-1"></div><div className="h-2 bg-gray-300 w-5/6 rounded-sm"></div></div>
+                        </>
+                      )}
+                      {localSettings.resume_template === 'engineeringresumes' && (
+                        <>
+                          <div className="w-full text-center mb-1">
+                            <div className="h-4 bg-black w-1/3 mx-auto rounded-sm mb-1"></div>
+                            <div className="h-1.5 bg-gray-500 w-2/3 mx-auto rounded-sm"></div>
+                          </div>
+                          <div className="h-2.5 bg-black w-1/4 rounded-sm mb-0.5"></div>
+                          <div className="border-b border-black w-full mb-1"></div>
+                          <div className="flex justify-between mb-0.5"><div className="h-2 bg-gray-800 w-1/3 rounded-sm"></div><div className="h-1.5 bg-gray-500 w-1/6 rounded-sm"></div></div>
+                          <div className="flex gap-1 mb-0.5"><div className="w-1 h-1 bg-black mt-0.5"></div><div className="h-1.5 bg-gray-400 w-full rounded-sm"></div></div>
+                          <div className="flex gap-1 mb-0.5"><div className="w-1 h-1 bg-black mt-0.5"></div><div className="h-1.5 bg-gray-400 w-11/12 rounded-sm"></div></div>
+                          <div className="flex gap-1 mb-1"><div className="w-1 h-1 bg-black mt-0.5"></div><div className="h-1.5 bg-gray-400 w-full rounded-sm"></div></div>
+                          <div className="h-2.5 bg-black w-1/4 rounded-sm mb-0.5 mt-2"></div>
+                          <div className="border-b border-black w-full mb-1"></div>
+                        </>
+                      )}
+                      {localSettings.resume_template === 'moderncv' && (
+                        <>
+                          <div className="flex justify-between items-end mb-4">
+                            <div className="h-6 bg-black w-1/2 rounded-sm"></div>
+                            <div className="flex flex-col gap-1 items-end w-1/3">
+                              <div className="h-1.5 bg-gray-500 w-full rounded-sm"></div>
+                              <div className="h-1.5 bg-gray-500 w-5/6 rounded-sm"></div>
+                            </div>
+                          </div>
+                          <div className="flex gap-4 mb-2">
+                            <div className="w-1/4 text-right">
+                              <div className="h-2 bg-blue-500 w-full rounded-sm ml-auto"></div>
+                            </div>
+                            <div className="w-3/4">
+                              <div className="h-2 bg-gray-300 w-full rounded-sm mb-1"></div>
+                              <div className="h-2 bg-gray-300 w-4/5 rounded-sm"></div>
+                            </div>
+                          </div>
+                          <div className="flex gap-4 mb-2">
+                            <div className="w-1/4 text-right">
+                              <div className="h-2 bg-blue-500 w-3/4 rounded-sm ml-auto"></div>
+                            </div>
+                            <div className="w-3/4">
+                              <div className="h-2 bg-gray-800 w-1/2 rounded-sm mb-1"></div>
+                              <div className="h-2 bg-gray-300 w-full rounded-sm mb-0.5"></div>
+                              <div className="h-2 bg-gray-300 w-5/6 rounded-sm"></div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

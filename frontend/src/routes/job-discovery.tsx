@@ -7,6 +7,7 @@ import {
   Check, X, Loader2, ArrowUpRight, Search
 } from "lucide-react";
 import { useState } from "react";
+import { AgentPipeline } from "../components/AgentPipeline";
 
 export const Route = createFileRoute("/job-discovery")({
   component: JobDiscoveryPage,
@@ -22,6 +23,7 @@ function JobDiscoveryPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [showPipeline, setShowPipeline] = useState(false);
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["leads", filterStatus],
@@ -35,6 +37,7 @@ function JobDiscoveryPage() {
 
   const harvestMutation = useMutation({
     mutationFn: async (query: string) => {
+      setShowPipeline(true);
       const res = await apiFetch("/api/harvest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,6 +45,10 @@ function JobDiscoveryPage() {
       });
       if (!res.ok) throw new Error("Failed to trigger harvest");
       return res.json();
+    },
+    onSettled: () => {
+      // Hide the pipeline 15 seconds after the harvest completes (or fails)
+      setTimeout(() => setShowPipeline(false), 15000);
     }
   });
 
@@ -96,6 +103,8 @@ function JobDiscoveryPage() {
               {harvestMutation.isPending ? "Harvesting..." : "Run Discovery Engine"}
             </button>
           </div>
+
+          {showPipeline && <AgentPipeline inline />}
           
           {harvestMutation.isSuccess && (
             <div className="mt-4 p-3 rounded-lg bg-neon-green/10 border border-neon-green/20 text-neon-green text-sm flex items-center gap-2">
@@ -193,7 +202,7 @@ function JobDiscoveryPage() {
                         <Sparkles className={`w-3 h-3 ${s.color}`} />
                         <span className="text-[13px] font-mono text-muted-foreground">AI Assessment</span>
                       </div>
-                      <p className="text-[13px] leading-snug line-clamp-2">{job.justification || "Matches core technical requirements."}</p>
+                      <p className="text-[13px] leading-snug line-clamp-2">{job.justification || "Awaiting AI Assessment..."}</p>
                     </div>
 
                     {/* Actions */}
@@ -217,7 +226,7 @@ function JobDiscoveryPage() {
                       )}
                       
                       <a 
-                        href={job.source_url} 
+                        href={job.url || job.job_url || "#"} 
                         target="_blank" 
                         rel="noreferrer"
                         className="h-9 px-3 rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple text-white text-xs font-semibold inline-flex items-center gap-1.5 hover:scale-[1.02] transition"

@@ -71,12 +71,16 @@ def _search_osint(company_name: str) -> str:
 def _get_domain(company_name: str) -> str:
     """Helper to extract domain via Clearbit free API"""
     try:
-        clean_name = company_name.split(" Pvt Ltd")[0].split(" LLC")[0].split(" Inc")[0]
+        # Better sanitization for company names
+        clean_name = re.sub(r'(?i)\b(inc|llc|ltd|pvt|corp|corporation)\b\.?', '', company_name).strip()
         res = requests.get(f"https://autocomplete.clearbit.com/v1/companies/suggest?query={clean_name}", timeout=5)
         if res.status_code == 200 and res.json():
             return res.json()[0].get('domain')
     except Exception: pass
-    return clean_name.lower().replace(" ", "") + ".com"
+    
+    # Fallback if clearbit fails
+    clean_name = re.sub(r'(?i)[^a-z0-9]', '', company_name)
+    return clean_name + ".com"
 
 def _search_smtp_alias(company_name: str) -> str:
     """
@@ -106,6 +110,13 @@ def _search_smtp_alias(company_name: str) -> str:
             server.connect(mx_record)
             server.helo(socket.getfqdn())
             server.mail('admin@ghostprotocol.ai') # Fake sender
+            
+            # Catch-All Verification Step
+            catch_code, _ = server.rcpt(f"catchall_test_1234567890@{domain}")
+            if catch_code == 250:
+                # Mail server accepts EVERYTHING (Catch-All). SMTP verification is useless here.
+                server.quit()
+                return None
             
             for alias in aliases:
                 code, message = server.rcpt(alias)

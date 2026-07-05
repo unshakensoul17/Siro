@@ -25,7 +25,10 @@ def get_client() -> Client:
             raise EnvironmentError(
                 "SUPABASE_URL and SUPABASE_KEY must be set in your .env file."
             )
-        _client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        # Use SERVICE_ROLE_KEY if provided to bypass RLS, otherwise fallback to anon SUPABASE_KEY
+        from core.config import SERVICE_ROLE_KEY
+        active_key = SERVICE_ROLE_KEY if SERVICE_ROLE_KEY else SUPABASE_KEY
+        _client = create_client(SUPABASE_URL, active_key)
     return _client
 
 
@@ -131,6 +134,16 @@ def _flatten_lead(row: dict) -> dict:
     flat["raw_description"] = flat.get("description")
     flat["job_url"] = flat.get("url")
     flat["source_platform"] = flat.get("source")
+    
+    notes_raw = flat.get("notes")
+    if notes_raw and isinstance(notes_raw, str):
+        try:
+            import json
+            notes_dict = json.loads(notes_raw)
+            flat["justification"] = notes_dict.get("rationale")
+        except Exception:
+            pass
+            
     return flat
 
 
@@ -211,13 +224,13 @@ def get_existing_dedup_hashes(hashes: list[str], user_id: Optional[str] = None) 
 def get_all_stats(user_id: Optional[str] = None) -> dict:
     """Aggregate pipeline statistics for the dashboard and daily digest."""
     try:
-        q = get_client().table("user_job_pipelines").select("status, score_band")
+        q = get_client().table("user_job_pipelines").select("status, score_band, score, global_jobs(source)")
         if user_id:
             q = q.eq("user_id", user_id)
         resp = q.execute()
         leads = resp.data or []
 
-        stats: dict[str, int] = {
+        stats: dict[str, any] = {
             "total": len(leads),
             "found": 0,
             "tailored": 0,
@@ -227,26 +240,35 @@ def get_all_stats(user_id: Optional[str] = None) -> dict:
             "hot": 0,
             "warm": 0,
             "cold": 0,
+            "sources": {},
+            "scores": [0] * 20, # 20 buckets for score histogram
         }
         for lead in leads:
             s = (lead.get("status") or "").lower()
             b = (lead.get("score_band") or "").lower()
-            if s == "found":
-                stats["found"] += 1
-            elif s == "tailored":
-                stats["tailored"] += 1
-            elif s == "approved":
-                stats["approved"] += 1
-            elif s == "applied":
-                stats["applied"] += 1
-            elif s == "dismissed":
-                stats["dismissed"] += 1
-            if b == "hot":
-                stats["hot"] += 1
-            elif b == "warm":
-                stats["warm"] += 1
-            elif b == "cold":
-                stats["cold"] += 1
+            
+            # Status
+            if s == "found": stats["found"] += 1
+            elif s == "tailored": stats["tailored"] += 1
+            elif s == "approved": stats["approved"] += 1
+            elif s == "applied": stats["applied"] += 1
+            elif s == "dismissed": stats["dismissed"] += 1
+            
+            # Band
+            if b == "hot" or b == "a": stats["hot"] += 1
+            elif b == "warm" or b == "b": stats["warm"] += 1
+            elif b == "cold" or b == "c": stats["cold"] += 1
+            
+            # Source
+            src = lead.get("global_jobs", {}).get("source", "unknown")
+            stats["sources"][src] = stats["sources"].get(src, 0) + 1
+            
+            # Score distribution
+            score = lead.get("score")
+            if score is not None:
+                bucket = min(19, int(score / 5)) # 0-4, 5-9, ..., 95-100
+                stats["scores"][bucket] += 1
+                
         return stats
     except Exception as e:
         logger.error(f"Error aggregating stats: {e}")

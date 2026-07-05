@@ -37,8 +37,6 @@ sentence-transformers  # local fallback model (paraphrase-MiniLM-L3-v2, ~50MB)
 # HuggingFace: called via httpx — no package needed
 
 # ── Stage 4: PDF generation ───────────────────────────────
-jinja2
-weasyprint              # Requires system libs — see Dockerfile
 
 # ── Legacy / utility ──────────────────────────────────────
 # google-search-results  ← REMOVED (replaced by free APIs)
@@ -46,3 +44,7 @@ weasyprint              # Requires system libs — see Dockerfile
 # fastembed              ← REMOVED (replaced by Jina AI + sentence-transformers)
 pypdf
 python-multipart
+requests 
+fastapi
+rendercv>=0.3.0
+typst

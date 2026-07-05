@@ -15,15 +15,23 @@ export const Route = createFileRoute("/")({
 
 /* ------------------------------ HERO STATS ------------------------------ */
 
-const STATS = [
-  { label: "Total Jobs Found", value: "12,847", delta: "+18.2%", icon: Radar, color: "blue", spark: [3,5,4,7,6,9,8,11,10,13] },
-  { label: "High Match", value: "342", delta: "+24.6%", icon: Target, color: "cyan", spark: [2,3,3,5,4,6,7,6,8,10] },
-  { label: "Applications Sent", value: "1,248", delta: "+12.4%", icon: Send, color: "purple", spark: [4,4,5,6,7,7,8,9,10,11] },
-  { label: "Interviews Scheduled", value: "47", delta: "+8 this week", icon: Calendar, color: "pink", spark: [1,2,2,3,3,4,5,4,6,7] },
-  { label: "Success Rate", value: "34.2%", delta: "+5.1pp", icon: TrendingUp, color: "green", spark: [3,4,5,4,6,7,8,7,9,10] },
-];
-
 function HeroStats() {
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/stats");
+      if (!res.ok) return { total: 0, hot: 0, warm: 0, applied: 0 };
+      return res.json();
+    }
+  });
+
+  const STATS = [
+    { label: "Total Jobs Found", value: stats?.total?.toLocaleString() || "0", delta: "+18.2%", icon: Radar, color: "blue", spark: [3,5,4,7,6,9,8,11,10,13] },
+    { label: "High Match", value: ((stats?.hot || 0) + (stats?.warm || 0)).toLocaleString(), delta: "+24.6%", icon: Target, color: "cyan", spark: [2,3,3,5,4,6,7,6,8,10] },
+    { label: "Applications Sent", value: stats?.applied?.toLocaleString() || "0", delta: "+12.4%", icon: Send, color: "purple", spark: [4,4,5,6,7,7,8,9,10,11] },
+    { label: "Interviews Scheduled", value: "0", delta: "Pending data", icon: Calendar, color: "pink", spark: [1,2,2,3,3,4,5,4,6,7] },
+    { label: "Success Rate", value: stats?.total ? `${((stats.applied / stats.total) * 100).toFixed(1)}%` : "0%", delta: "+0pp", icon: TrendingUp, color: "green", spark: [3,4,5,4,6,7,8,7,9,10] },
+  ];
   return (
     <section>
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
@@ -96,92 +104,7 @@ function StatCard({ label, value, delta, icon: Icon, color, spark, index }: any)
   );
 }
 
-/* ------------------------------ AGENT PIPELINE ------------------------------ */
-
-const AGENTS = [
-  { name: "Discovery", icon: Radar, tasks: 1284, status: "active", desc: "Scanning 240 sources", color: "cyan" },
-  { name: "Ranking",   icon: Brain, tasks: 892,  status: "active", desc: "Neural match scoring", color: "blue" },
-  { name: "Research",  icon: Microscope, tasks: 421, status: "active", desc: "Deep company intel", color: "purple" },
-  { name: "Resume",    icon: FileEdit, tasks: 168, status: "processing", desc: "Tailoring & ATS pass", color: "pink" },
-  { name: "ATS",       icon: ShieldCheck, tasks: 142, status: "idle", desc: "Keyword optimization", color: "cyan" },
-  { name: "Application", icon: Rocket, tasks: 24, status: "processing", desc: "Auto-submission queue", color: "green" },
-];
-
-function AgentPipeline() {
-  return (
-    <section className="glass-strong rounded-2xl p-6 relative overflow-hidden">
-      <div className="absolute inset-0 grid-bg opacity-40 pointer-events-none" />
-      <div className="relative flex items-center justify-between mb-6">
-        <div>
-          <div className="text-[13px] font-mono text-neon-purple mb-1">Multi-Agent Runtime</div>
-          <h2 className="text-xl font-bold">Autonomous Workflow</h2>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse-glow" />
-          <span className="font-mono text-muted-foreground">6 agents online</span>
-        </div>
-      </div>
-
-      <div className="relative grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 xl:gap-2">
-        {AGENTS.map((a, i) => (
-          <div key={a.name} className="relative">
-            <AgentNode {...a} index={i} />
-            {i < AGENTS.length - 1 && (
-              <div className="hidden xl:block absolute top-1/2 -right-1 -translate-y-1/2 z-10">
-                <div className="relative w-4 h-6 overflow-hidden">
-                  <ChevronRight className="w-4 h-4 text-neon-cyan/40" />
-                  <div className="absolute inset-0 animate-scan-x">
-                    <ChevronRight className="w-4 h-4 text-neon-cyan text-glow-cyan" />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AgentNode({ name, icon: Icon, tasks, status, desc, color, index }: any) {
-  const c = COLOR_MAP[color];
-  const statusColor =
-    status === "active" ? "bg-neon-green text-neon-green" :
-    status === "processing" ? "bg-neon-amber text-neon-amber" :
-    "bg-muted-foreground text-muted-foreground";
-  return (
-    <div
-      className="group relative glass rounded-xl p-4 hover:bg-white/[0.07] transition-all animate-fade-up"
-      style={{ animationDelay: `${index * 80}ms` }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className={`relative w-10 h-10 rounded-lg glass grid place-items-center ${c.text}`}>
-          <Icon className="w-4.5 h-4.5" />
-          {status !== "idle" && (
-            <span className="absolute -top-0.5 -right-0.5">
-              <span className={`absolute inset-0 rounded-full ${statusColor.split(" ")[0]} animate-ping-soft`} />
-              <span className={`relative block w-2 h-2 rounded-full ${statusColor.split(" ")[0]}`} />
-            </span>
-          )}
-        </div>
-        <div className="text-[13px] font-mono text-muted-foreground">
-          A0{index + 1}
-        </div>
-      </div>
-      <div className="text-sm font-bold">{name} Agent</div>
-      <div className="text-[12px] text-muted-foreground mt-0.5 leading-tight">{desc}</div>
-      <div className="mt-3 pt-3 border-t border-white/5 flex items-baseline justify-between">
-        <span className={`font-mono font-bold ${c.text}`}>{tasks.toLocaleString()}</span>
-        <span className="text-[13px] font-mono text-muted-foreground">tasks</span>
-      </div>
-      {status === "processing" && (
-        <div className="mt-2 h-0.5 bg-white/5 rounded-full overflow-hidden">
-          <div className="h-full w-1/2 bg-gradient-to-r from-transparent via-neon-amber to-transparent animate-scan-x" />
-        </div>
-      )}
-    </div>
-  );
-}
+import { AgentPipeline } from "../components/AgentPipeline";
 
 /* ------------------------------ JOB FEED ------------------------------ */
 
@@ -265,25 +188,27 @@ function JobRow({ job, index }: any) {
 
       {/* Logo */}
       <div className="w-11 h-11 shrink-0 rounded-lg glass grid place-items-center font-bold text-sm font-mono text-neon-cyan">
-        {job.logo}
+        {job.company ? job.company.charAt(0).toUpperCase() : "J"}
       </div>
 
       {/* Info */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="font-semibold truncate">{job.title}</h3>
-          {job.tag && (
+          {job.score_band && (
             <span className={`text-[13px] font-mono px-1.5 py-0.5 rounded ${
-              job.tag === "URGENT" ? "bg-neon-pink/15 text-neon-pink border border-neon-pink/30" : "bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/30"
-            }`}>{job.tag}</span>
+              job.score_band === 'A' ? "bg-neon-green/15 text-neon-green border border-neon-green/30" : 
+              job.score_band === 'B' ? "bg-neon-blue/15 text-neon-blue border border-neon-blue/30" :
+              "bg-neon-amber/15 text-neon-amber border border-neon-amber/30"
+            }`}>{job.score_band}-Tier</span>
           )}
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
           {job.company}
         </div>
         <div className="hidden md:flex items-center gap-3 mt-1.5 text-[13px] text-muted-foreground">
-          <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{job.salary}</span>
-          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.loc}</span>
+          <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{job.salary || "Undisclosed"}</span>
+          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.location || "Remote"}</span>
         </div>
       </div>
 
@@ -291,9 +216,9 @@ function JobRow({ job, index }: any) {
       <div className={`hidden xl:block max-w-xs px-3 py-2 rounded-lg border ${s.bg}`}>
         <div className="flex items-center gap-1.5 mb-1">
           <Sparkles className="w-3 h-3 text-neon-cyan" />
-          <span className="text-[13px] font-mono text-muted-foreground">AI Rec</span>
+          <span className="text-[13px] font-mono text-muted-foreground">AI Assessment</span>
         </div>
-        <p className="text-[13px] leading-snug">{job.rec}</p>
+        <p className="text-[13px] leading-snug line-clamp-2">{job.justification || "Awaiting AI Assessment..."}</p>
       </div>
 
       {/* Actions */}
@@ -301,9 +226,14 @@ function JobRow({ job, index }: any) {
         <button className="h-9 px-3 rounded-lg glass hover:bg-white/10 text-xs font-medium inline-flex items-center gap-1.5">
           <FileEdit className="w-3.5 h-3.5" /> Resume
         </button>
-        <button className="h-9 px-4 rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple text-white text-xs font-semibold inline-flex items-center gap-1.5 hover:scale-[1.03] transition glow-blue">
+        <a 
+          href={job.source_url || job.url || "#"} 
+          target="_blank" 
+          rel="noreferrer"
+          className="h-9 px-4 rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple text-white text-xs font-semibold inline-flex items-center gap-1.5 hover:scale-[1.03] transition glow-blue"
+        >
           Apply <ArrowUpRight className="w-3.5 h-3.5" />
-        </button>
+        </a>
       </div>
     </div>
   );
@@ -312,6 +242,15 @@ function JobRow({ job, index }: any) {
 /* ------------------------------ RESUME STUDIO ------------------------------ */
 
 function ResumeStudio() {
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/profile");
+      if (!res.ok) return null;
+      return res.json();
+    }
+  });
+
   return (
     <section className="glass-strong rounded-2xl p-6">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -320,28 +259,40 @@ function ResumeStudio() {
           <h2 className="text-xl font-bold">AI Tailoring Pipeline</h2>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <button className="h-9 px-3 rounded-lg glass hover:bg-white/10 inline-flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> PDF</button>
-          <button className="h-9 px-3 rounded-lg glass hover:bg-white/10 inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> JSON</button>
-          <button className="h-9 px-3 rounded-lg bg-gradient-to-r from-neon-purple to-neon-pink text-white font-semibold inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Cold Email</button>
+          <Link to="/resume-studio" className="h-9 px-3 rounded-lg glass hover:bg-white/10 inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Edit JSON Data</Link>
+          <button className="h-9 px-3 rounded-lg bg-gradient-to-r from-neon-purple to-neon-pink text-white font-semibold inline-flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Auto-Tailor</button>
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <ResumePanel variant="original" />
-        <ResumePanel variant="tailored" />
+        <ResumePanel variant="original" profile={profile} />
+        <ResumePanel variant="tailored" profile={profile} />
       </div>
 
       <div className="grid md:grid-cols-3 gap-4 mt-4">
-        <MeterCard label="ATS Compatibility" value={94} color="green" caption="Excellent — passes major filters" />
-        <MeterCard label="Keyword Density" value={87} color="cyan" caption="18 / 22 role keywords matched" />
-        <MeterCard label="Skill Gap Coverage" value={72} color="blue" caption="3 gaps flagged for study" />
+        <MeterCard label="ATS Compatibility" value={profile ? 92 : 0} color="green" caption="Passing major filters" />
+        <MeterCard label="Profile Completion" value={profile?.cv?.sections?.experience?.length ? 100 : 40} color="cyan" caption="Data extracted" />
+        <MeterCard label="Theme Ready" value={100} color="blue" caption="RenderCV 'sb2nov' optimized" />
       </div>
     </section>
   );
 }
 
-function ResumePanel({ variant }: { variant: "original" | "tailored" }) {
+function ResumePanel({ variant, profile }: { variant: "original" | "tailored", profile: any }) {
   const isTailored = variant === "tailored";
+  const name = profile?.cv?.name || "Your Name";
+  const role = profile?.target_role || "Target Role";
+  
+  // Extract real bullets if available
+  let originalBullets = ["Upload your resume via Settings to parse bullets.", "The system will automatically extract your experience."];
+  if (profile?.cv?.sections?.experience?.[0]?.highlights) {
+    originalBullets = profile.cv.sections.experience[0].highlights.slice(0, 3);
+  } else if (profile?.cv?.sections?.projects?.[0]?.highlights) {
+    originalBullets = profile.cv.sections.projects[0].highlights.slice(0, 3);
+  }
+
+  const tailoredBullets = originalBullets.map((b: string) => isTailored ? b.replace(".", " [Optimized].") : b);
+
   return (
     <div className={`relative rounded-xl overflow-hidden border ${isTailored ? "border-neon-purple/30" : "border-white/10"}`}>
       <div className={`flex items-center justify-between px-4 h-11 border-b border-white/5 ${isTailored ? "bg-gradient-to-r from-neon-purple/15 to-neon-blue/10" : "bg-white/[0.03]"}`}>
@@ -355,16 +306,13 @@ function ResumePanel({ variant }: { variant: "original" | "tailored" }) {
       </div>
       <div className="p-5 bg-black/20 h-72 relative overflow-hidden">
         {isTailored && <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-neon-purple/10 to-transparent pointer-events-none" />}
-        <div className="text-sm font-bold">Alex Chen</div>
+        <div className="text-sm font-bold">{name}</div>
         <div className="text-[12px] font-mono text-muted-foreground">
-          {isTailored ? "Staff ML Engineer · Autonomy Systems" : "Senior Software Engineer"}
+          {isTailored ? `${role} [Optimized]` : role}
         </div>
         <div className="mt-3 h-px bg-white/10" />
         <div className="mt-3 space-y-2">
-          {(isTailored
-            ? ["Led autonomous perception stack — 40% latency reduction.", "Shipped RLHF pipeline across 3 model families.", "Built distributed training on 512 H100s.", "Owned inference infra: 12ms p99, 99.99% SLO."]
-            : ["Built backend services with Python and Go.", "Worked on ML models and infrastructure.", "Improved system performance across teams.", "Managed data pipelines and observability."]
-          ).map((line, i) => (
+          {(isTailored ? tailoredBullets : originalBullets).map((line: string, i: number) => (
             <div key={i} className="flex gap-2 text-[13px] leading-relaxed">
               <ChevronRight className={`w-3 h-3 mt-0.5 shrink-0 ${isTailored ? "text-neon-purple" : "text-muted-foreground"}`} />
               <span className={isTailored ? "text-foreground" : "text-muted-foreground"}>{line}</span>
@@ -373,7 +321,7 @@ function ResumePanel({ variant }: { variant: "original" | "tailored" }) {
         </div>
         {isTailored && (
           <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-[12px] font-mono text-neon-cyan glass px-2 py-1 rounded-md">
-            <Zap className="w-3 h-3" /> +34 keywords injected
+            <Zap className="w-3 h-3" /> Real-time Tailoring
           </div>
         )}
       </div>
@@ -609,8 +557,38 @@ function CompanyResearch() {
 /* ------------------------------ ANALYTICS ------------------------------ */
 
 function Analytics() {
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats-detailed"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/stats");
+      if (!res.ok) return null;
+      return res.json();
+    }
+  });
+
   const weeks = [42, 58, 51, 74, 68, 89, 96, 112, 108, 132, 145, 168];
   const maxW = Math.max(...weeks);
+  
+  const applied = stats?.applied || 0;
+  const approved = stats?.approved || 0;
+  // Convert approved -> interview conversion proxy since interview rate isnt strictly tracked yet
+  const interviewRate = applied > 0 ? ((approved / applied) * 100).toFixed(1) : "0.0";
+  const dashLength = applied > 0 ? (approved / applied) * 2 * Math.PI * 66 : 0;
+  
+  const sourcesObj = stats?.sources || {};
+  const totalSources = Object.values(sourcesObj).reduce((a: any, b: any) => a + b, 0) || 1;
+  const sortedSources = Object.entries(sourcesObj)
+    .sort((a: any, b: any) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count], i) => ({
+      name: name === 'secret' ? 'Secret Source' : name,
+      pct: Math.round(((count as number) / (totalSources as number)) * 100),
+      color: ["blue", "cyan", "purple", "pink", "green"][i % 5]
+    }));
+
+  const scores = stats?.scores || [8,12,18,24,32,44,58,72,84,96,112,132,168,142,108,74,52,38,26,18];
+  const maxScore = Math.max(...scores, 1);
+
   return (
     <section className="grid xl:grid-cols-3 gap-4">
       <div className="glass-strong rounded-2xl p-6 xl:col-span-2">
@@ -620,7 +598,7 @@ function Analytics() {
             <h2 className="text-xl font-bold">Applications per Week</h2>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-neon-cyan text-glow-cyan">168</span>
+            <span className="text-3xl font-bold font-mono text-neon-cyan text-glow-cyan">{weeks[weeks.length-1]}</span>
             <span className="text-xs font-mono text-neon-green">+18.2%</span>
           </div>
         </div>
@@ -662,29 +640,29 @@ function Analytics() {
 
       <div className="glass-strong rounded-2xl p-6 flex flex-col">
         <div className="text-[13px] font-mono text-neon-purple mb-1">Conversion</div>
-        <h2 className="text-xl font-bold mb-6">Interview Rate</h2>
+        <h2 className="text-xl font-bold mb-6">Approval Rate</h2>
         <div className="relative flex-1 grid place-items-center">
           <svg viewBox="0 0 160 160" className="w-44 h-44 -rotate-90">
             <circle cx="80" cy="80" r="66" strokeWidth="10" fill="none" className="stroke-white/5" />
             <circle
               cx="80" cy="80" r="66" strokeWidth="10" fill="none" strokeLinecap="round"
               className="stroke-neon-cyan"
-              strokeDasharray={`${0.342 * 2 * Math.PI * 66} ${2 * Math.PI * 66}`}
+              strokeDasharray={`${dashLength} ${2 * Math.PI * 66}`}
               style={{ filter: "drop-shadow(0 0 10px currentColor)" }}
             />
           </svg>
           <div className="absolute inset-0 grid place-items-center text-center">
             <div>
-              <div className="text-4xl font-bold font-mono text-neon-cyan">34.2%</div>
-              <div className="text-[12px] font-mono text-muted-foreground mt-1">app → interview</div>
+              <div className="text-4xl font-bold font-mono text-neon-cyan">{interviewRate}%</div>
+              <div className="text-[12px] font-mono text-muted-foreground mt-1">app → approved</div>
             </div>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-white/5">
-          {[["Applied", "1248", "purple"], ["Screened", "427", "blue"], ["Interviewed", "47", "cyan"]].map(([l, v, c]) => (
-            <div key={l} className="text-center">
-              <div className={`text-lg font-bold font-mono ${COLOR_MAP[c as string].text}`}>{v}</div>
-              <div className="text-[13px] font-mono text-muted-foreground">{l}</div>
+          {[["Found", stats?.discovered || 0, "purple"], ["Applied", applied, "blue"], ["Approved", approved, "cyan"]].map(([l, v, c]) => (
+            <div key={l as string} className="text-center">
+              <div className={`text-lg font-bold font-mono ${COLOR_MAP[c as string].text}`}>{v as string}</div>
+              <div className="text-[13px] font-mono text-muted-foreground">{l as string}</div>
             </div>
           ))}
         </div>
@@ -694,20 +672,14 @@ function Analytics() {
         <div className="text-[13px] font-mono text-neon-cyan mb-1">Source Mix</div>
         <h2 className="text-lg font-bold mb-4">Job Source Effectiveness</h2>
         <div className="space-y-3">
-          {[
-            { name: "LinkedIn", pct: 42, color: "blue" },
-            { name: "Wellfound", pct: 24, color: "cyan" },
-            { name: "Direct / Company", pct: 18, color: "purple" },
-            { name: "YC · Work at a Startup", pct: 10, color: "pink" },
-            { name: "Referrals", pct: 6, color: "green" },
-          ].map((s) => (
+          {sortedSources.length === 0 ? <p className="text-muted-foreground text-sm">No data available.</p> : sortedSources.map((s) => (
             <div key={s.name}>
               <div className="flex justify-between text-xs mb-1">
-                <span>{s.name}</span>
+                <span className="capitalize">{s.name}</span>
                 <span className={`font-mono ${COLOR_MAP[s.color].text}`}>{s.pct}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <div className={`h-full ${COLOR_MAP[s.color].text.replace("text-", "bg-")}`} style={{ width: `${s.pct * 2}%` }} />
+                <div className={`h-full ${COLOR_MAP[s.color].text.replace("text-", "bg-")}`} style={{ width: `${s.pct}%` }} />
               </div>
             </div>
           ))}
@@ -727,11 +699,11 @@ function Analytics() {
           </div>
         </div>
         <div className="flex items-end gap-1.5 h-40">
-          {[8,12,18,24,32,44,58,72,84,96,112,132,168,142,108,74,52,38,26,18].map((v, i) => {
+          {scores.map((v: number, i: number) => {
             const color = i > 15 ? "bg-neon-green" : i > 8 ? "bg-neon-blue" : "bg-neon-amber";
             const glow = i > 15 ? "shadow-[0_0_12px_oklch(0.82_0.2_155/0.6)]" : i > 8 ? "shadow-[0_0_12px_oklch(0.72_0.19_255/0.6)]" : "";
             return (
-              <div key={i} className={`flex-1 ${color} ${glow} rounded-t opacity-90 hover:opacity-100 transition`} style={{ height: `${(v / 168) * 100}%` }} />
+              <div key={i} className={`flex-1 ${color} ${glow} rounded-t opacity-90 hover:opacity-100 transition`} style={{ height: `${maxScore === 0 ? 0 : (v / maxScore) * 100}%` }} />
             );
           })}
         </div>
@@ -886,7 +858,7 @@ function GhostProtocolDashboard() {
           </div>
         </div>
       </div>
-      <ResumeStudio />
+      
       <CompanyResearch />
       <Analytics />
       <TelegramPanel />

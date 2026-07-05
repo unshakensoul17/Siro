@@ -20,18 +20,30 @@ logger = get_logger(__name__)
 app = FastAPI(title="Ghost Protocol v3.0 SaaS Dashboard")
 
 
+import time
+
+_TOKEN_CACHE = {} # token -> {"user_id": id, "expires": time.time() + 300}
+
 def get_current_user_id(authorization: str = Header(None)) -> str:
-    """Strictly validate Supabase JWT auth token."""
+    """Strictly validate Supabase JWT auth token with local 5-min caching."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized: Missing or invalid token format")
 
     token = authorization.split(" ")[1]
+    
+    now = time.time()
+    if token in _TOKEN_CACHE and _TOKEN_CACHE[token]["expires"] > now:
+        return _TOKEN_CACHE[token]["user_id"]
+        
     try:
         client = get_client()
         user_res = client.auth.get_user(token)
         if not user_res or not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized: Invalid token")
-        return user_res.user.id
+            
+        user_id = user_res.user.id
+        _TOKEN_CACHE[token] = {"user_id": user_id, "expires": now + 300}
+        return user_id
     except Exception as e:
         logger.error(f"JWT Verification failed: {e}")
         raise HTTPException(status_code=401, detail="Unauthorized: Token verification failed")
@@ -96,11 +108,14 @@ async def get_stats(user_id: str = Depends(get_current_user_id)):
             "applied":    stats.get("applied", 0),
             "dismissed":  stats.get("dismissed", 0),
             "total":      stats.get("total", 0),
+            "sources":    stats.get("sources", {}),
+            "scores":     stats.get("scores", []),
+            "approved":   stats.get("approved", 0),
         })
     except Exception as e:
         logger.error(f"Stats error: {e}")
         return JSONResponse({"hot": 0, "warm": 0, "cold": 0, "discovered": 0,
-                             "tailored": 0, "applied": 0, "dismissed": 0, "total": 0})
+                             "tailored": 0, "applied": 0, "dismissed": 0, "total": 0, "sources": {}, "scores": [], "approved": 0})
 
 
 @app.get("/api/leads")
@@ -281,7 +296,53 @@ async def upload_master_resume(
             for page in reader.pages:
                 text += page.extract_text() + "\n"
                 
-        system_prompt = "You are a precise resume parser. Extract the user's details from the following resume text and output ONLY a valid JSON object matching this schema: {\"name\": \"\", \"email\": \"\", \"phone\": \"\", \"skills\": \"comma separated list\", \"experience\": \"Company | Role | Dates\\n- Bullet points\", \"education\": \"\", \"links\": \"\"}. Return ONLY the JSON, no markdown formatting."
+        system_prompt = '''You are an expert resume parser. Extract the user's details from the following resume text and output ONLY a valid JSON object matching the strict RenderCV schema below. 
+Do NOT wrap the output in markdown blocks (e.g. ```json). Just output raw JSON.
+
+Schema requirements:
+{
+  "cv": {
+    "name": "Full Name",
+    "email": "Email",
+    "phone": "Phone number",
+    "location": "City, State",
+    "social_networks": [ {"network": "LinkedIn", "username": "username"} ],
+    "sections": {
+      "summary": ["Sentence 1.", "Sentence 2."],
+      "education": [
+        {
+          "institution": "University Name",
+          "area": "Major/Field",
+          "degree": "B.S. or M.S. etc",
+          "start_date": "YYYY-MM",
+          "end_date": "YYYY-MM"
+        }
+      ],
+      "experience": [
+        {
+          "company": "Company Name",
+          "position": "Job Title",
+          "location": "City, State",
+          "start_date": "YYYY-MM",
+          "end_date": "YYYY-MM or present",
+          "highlights": ["Bullet point 1", "Bullet point 2"]
+        }
+      ],
+      "projects": [
+        {
+          "name": "Project Name",
+          "date": "YYYY-MM to YYYY-MM",
+          "url": "https://github.com/...",
+          "highlights": ["Bullet point 1", "Bullet point 2"]
+        }
+      ],
+      "skills": [
+        {"label": "Category (e.g. Languages)", "details": "Skill 1, Skill 2"}
+      ]
+    }
+  }
+}
+'''
         user_prompt = f"RESUME TEXT:\n{text[:8000]}"
         
         parsed_data = await call_groq(system_prompt, user_prompt)
@@ -413,9 +474,12 @@ async def get_settings(user_id: str = Depends(get_current_user_id)):
         if not prefs:
             try:
                 with open("settings.json", "r") as f:
-                    return json.load(f)
+                    prefs = json.load(f)
             except:
-                return {}
+                prefs = {}
+                
+        # Inject connection status so frontend can render it
+        prefs["telegram_connected"] = bool(profile.get("telegram_chat_id"))
         return prefs
     except Exception as e:
         logger.error(f"Error reading settings from DB: {e}")

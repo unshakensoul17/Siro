@@ -13,6 +13,7 @@ load_dotenv()
 # ─────────────────────────────────────────────────────────
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "").strip()
+SERVICE_ROLE_KEY: str = os.getenv("SERVICE_ROLE_KEY", "").strip()
 
 # ─────────────────────────────────────────────────────────
 #  LLM PROVIDERS
@@ -21,7 +22,7 @@ GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "").strip()
 GROQ_MODEL: str = "llama-3.1-8b-instant"
 
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL: str = "gemini-1.5-flash"
+GEMINI_MODEL: str = "gemini-flash-latest"
 
 HF_API_KEY: str = os.getenv("HF_API_KEY", "").strip()
 HF_MODEL: str = "mistralai/Mistral-7B-Instruct-v0.3"

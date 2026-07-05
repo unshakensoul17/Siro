@@ -43,5 +43,7 @@ class RankingAgent:
         try:
             return await run_scoring(profile)
         except Exception as e:
+            import traceback
             logger.error(f"RankingAgent: scoring failed — {e}")
+            logger.error(traceback.format_exc())
             return {"hot": 0, "warm": 0, "cold": 0, "reject": 0, "total": 0}

@@ -28,6 +28,7 @@ async def run_waterfall(
     master_resume: dict,
     api_keys: dict = None,
     preferences: dict = None,
+    validator_fn=validate_output,
 ) -> dict | None:
     """
     Try each LLM provider in order.
@@ -38,7 +39,7 @@ async def run_waterfall(
         
     llm_settings = settings.get("llm", {})
     primary_engine = llm_settings.get("primary_engine", "groq|llama-3.1-8b-instant")
-    secondary_engine = llm_settings.get("secondary_engine", "gemini|gemini-1.5-flash")
+    secondary_engine = llm_settings.get("secondary_engine", "gemini|gemini-flash-latest")
     
     # Override keys with vault keys if present
     groq_key = llm_settings.get("groq_api_key") or keys.get("GROQ_API_KEY") or GROQ_API_KEY
@@ -47,9 +48,13 @@ async def run_waterfall(
 
     def parse_engine(engine_str):
         parts = engine_str.split("|")
-        if len(parts) == 2: return parts[0], parts[1]
+        if len(parts) == 2:
+            provider, model = parts[0], parts[1]
+            if provider == "gemini" and model == "gemini-1.5-flash":
+                model = "gemini-flash-latest"
+            return provider, model
         if "groq" in engine_str.lower(): return "groq", "llama-3.1-8b-instant"
-        return "gemini", "gemini-1.5-flash"
+        return "gemini", "gemini-flash-latest"
 
     p_provider, p_model = parse_engine(primary_engine)
     s_provider, s_model = parse_engine(secondary_engine)
@@ -71,7 +76,7 @@ async def run_waterfall(
             
     # Add default fallbacks just in case
     if "gemini" not in p_provider and "gemini" not in s_provider and gemini_key:
-        providers.append(("Gemini Flash (Default)", call_gemini, gemini_key, "gemini-1.5-flash"))
+        providers.append(("Gemini Flash (Default)", call_gemini, gemini_key, "gemini-flash-latest"))
     if "groq" not in p_provider and "groq" not in s_provider and groq_key:
         providers.append(("Groq (Default)", call_groq, groq_key, "llama-3.1-8b-instant"))
             
@@ -89,7 +94,10 @@ async def run_waterfall(
                     raw = await provider_fn(system_prompt, user_prompt, api_key=key, model=model)
                 else:
                     raw = await provider_fn(system_prompt, user_prompt, api_key=key)
-                validated = validate_output(raw, master_resume)
+                if validator_fn:
+                    validated = validator_fn(raw, master_resume)
+                else:
+                    validated = raw
 
                 if validated:
                     logger.info(
