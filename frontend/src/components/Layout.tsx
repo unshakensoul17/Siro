@@ -3,7 +3,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Search, Sparkles, FileText, Building2, Send,
   BarChart3, Settings, Ghost, Bell, MessageCircle, Activity,
-  ChevronRight, Cpu, Wifi, Command, LogOut,
+  ChevronRight, Cpu, Wifi, Command, LogOut, Home,
 } from "lucide-react";
 import { AuthGuard } from "./AuthGuard";
 import { useAuth } from "../hooks/useAuth";
@@ -27,7 +27,7 @@ function Sidebar() {
   const activeApps = (stats?.approved || 0) + (stats?.applied || 0) + (stats?.interviews || 0);
 
   const NAV = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: FileText, label: "Resume Studio", path: "/resume-studio" },
     { icon: Search, label: "Job Discovery", badge: stats?.discovered?.toString() || "0", path: "/job-discovery" },
     { icon: Building2, label: "Company Research", path: "/company-research" },
@@ -37,10 +37,10 @@ function Sidebar() {
   
   return (
     <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 flex-col glass-strong border-r border-white/8 z-40">
-      <div className="flex items-center gap-3 px-6 h-20 border-b border-white/5">
+      <Link to="/" className="flex items-center gap-3 px-6 h-20 border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer">
         <div className="relative">
-          <div className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-neon-blue via-neon-purple to-neon-cyan glow-blue">
-            <Ghost className="w-5 h-5 text-white" strokeWidth={2.4} />
+          <div className="w-12 h-12 rounded-xl overflow-hidden bg-black grid place-items-center border border-white/10 glow-blue p-1">
+            <img src="/logo.png" alt="PhantmOS Logo" className="w-full h-full object-contain" />
           </div>
           <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-neon-green ring-2 ring-[#0B1020] animate-pulse-glow" />
         </div>
@@ -48,7 +48,7 @@ function Sidebar() {
           <div className="font-bold tracking-tight text-[15px] leading-tight">PhantmOS</div>
           <div className="text-[12px] font-medium text-muted-foreground">Engine v3.2</div>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <div className="px-3 pb-2 text-[12px] font-medium text-muted-foreground/60">Command</div>

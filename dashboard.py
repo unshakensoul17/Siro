@@ -116,6 +116,27 @@ async def get_stats(user_id: str = Depends(get_current_user_id)):
     """Real-time pipeline stats — includes v2 band counts."""
     try:
         stats = get_all_stats(user_id)
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc)
+        twelve_weeks_ago = now - datetime.timedelta(weeks=12)
+        
+        client = get_client()
+        app_resp = client.table("user_job_pipelines").select("created_at").eq("user_id", user_id).eq("status", "Applied").gte("created_at", twelve_weeks_ago.isoformat()).execute()
+        
+        weeks_data = [0] * 12
+        for row in (app_resp.data or []):
+            try:
+                dt_str = row["created_at"].replace("Z", "+00:00")
+                if "." not in dt_str and "+" in dt_str:
+                    pass
+                dt = datetime.datetime.fromisoformat(dt_str)
+                delta = now - dt
+                week_idx = 11 - (delta.days // 7)
+                if 0 <= week_idx < 12:
+                    weeks_data[week_idx] += 1
+            except Exception:
+                pass
+
         return JSONResponse({
             "hot":        stats.get("hot", 0),
             "warm":       stats.get("warm", 0),
@@ -129,6 +150,7 @@ async def get_stats(user_id: str = Depends(get_current_user_id)):
             "sources":    stats.get("sources", {}),
             "scores":     stats.get("scores", []),
             "approved":   stats.get("approved", 0),
+            "weekly_applications": weeks_data,
             "credits":    get_profile(user_id).get("credits", 0) if get_profile(user_id) else 0,
             "max_credits": 1000
         })

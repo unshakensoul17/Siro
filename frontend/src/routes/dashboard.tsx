@@ -50,10 +50,10 @@ function HeroStats() {
             Six specialized agents operating in concert — discovering, ranking, tailoring, and applying to opportunities across 240+ sources in real time.
           </p>
         </div>
-        <button className="group relative overflow-hidden inline-flex items-center gap-2 px-5 h-11 rounded-xl bg-gradient-to-r from-neon-blue to-neon-purple font-semibold text-sm text-white glow-blue hover:scale-[1.02] transition">
-          <Zap className="w-4 h-4" />
+        <button className="group relative overflow-hidden inline-flex items-center gap-2 px-5 h-11 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 font-semibold text-sm text-white transition-all hover:scale-[1.02] hover:border-white/30">
+          <Zap className="w-4 h-4 text-neon-blue" />
           Deploy PhantmOS
-          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </button>
       </div>
 
@@ -566,9 +566,21 @@ function Analytics() {
     }
   });
 
-  const weeks = [42, 58, 51, 74, 68, 89, 96, 112, 108, 132, 145, 168];
-  const maxW = Math.max(...weeks);
+  const weeks = stats?.weekly_applications || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const maxW = Math.max(...weeks, 1);
   
+  const currentWeek = weeks[11];
+  const prevWeek = weeks[10];
+  let growth = "+0.0%";
+  if (prevWeek > 0) {
+    const g = ((currentWeek - prevWeek) / prevWeek) * 100;
+    growth = `${g >= 0 ? '+' : ''}${g.toFixed(1)}%`;
+  } else if (currentWeek > 0) {
+    growth = "+100.0%";
+  } else {
+    growth = "0.0%";
+  }
+
   const applied = stats?.applied || 0;
   const approved = stats?.approved || 0;
   // Convert approved -> interview conversion proxy since interview rate isnt strictly tracked yet
@@ -598,8 +610,8 @@ function Analytics() {
             <h2 className="text-xl font-bold">Applications per Week</h2>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-neon-cyan text-glow-cyan">{weeks[weeks.length-1]}</span>
-            <span className="text-xs font-mono text-neon-green">+18.2%</span>
+            <span className="text-3xl font-bold font-mono text-neon-cyan text-glow-cyan">{currentWeek}</span>
+            <span className={`text-xs font-mono ${growth.startsWith('-') ? 'text-red-400' : 'text-neon-green'}`}>{growth}</span>
           </div>
         </div>
         <div className="relative h-56">
@@ -738,8 +750,8 @@ function TelegramPanel() {
               </div>
               <div className="pt-8 px-3">
                 <div className="flex items-center gap-2 pb-3 border-b border-white/5">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-neon-blue to-neon-purple grid place-items-center">
-                    <Ghost className="w-4 h-4" />
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-black grid place-items-center border border-white/10 p-1">
+                    <img src="/logo.png" alt="Bot Logo" className="w-full h-full object-contain" />
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold">PhantmOS Bot</div>
@@ -864,7 +876,7 @@ function PhantmOSDashboard() {
 
       <footer className="pt-6 pb-8 flex items-center justify-between flex-wrap gap-3 border-t border-white/5">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Ghost className="w-4 h-4 text-neon-cyan" />
+          <img src="/logo.png" alt="PhantmOS" className="w-6 h-6 object-contain opacity-70" />
           <span className="font-mono">PhantmOS Engine · v3.2.1 · Autonomous Runtime</span>
         </div>
         <div className="flex items-center gap-4 text-[12px] font-mono text-muted-foreground">

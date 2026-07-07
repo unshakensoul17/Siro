@@ -31,10 +31,10 @@ function AuthComponent() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // If already logged in and not in the process of setting a password, redirect home
+  // If already logged in and not in the process of setting a password, redirect to dashboard
   useEffect(() => {
     if (user && mode !== 'set_password') {
-      navigate({ to: '/' });
+      navigate({ to: '/dashboard' });
     }
   }, [user, mode, navigate]);
 
@@ -91,7 +91,7 @@ function AuthComponent() {
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
         setMessage('Password set successfully! Redirecting...');
-        setTimeout(() => navigate({ to: '/' }), 1000);
+        setTimeout(() => navigate({ to: '/dashboard' }), 1000);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred.');

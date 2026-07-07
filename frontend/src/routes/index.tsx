@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useInView, useScroll, useTransform } from "motion/react";
+import { motion, useInView, useScroll, useTransform, useSpring } from "motion/react";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
@@ -205,11 +205,7 @@ function Nav() {
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5">
-        <div className="relative w-6 h-6">
-          <div className="absolute inset-0 rounded-full border border-white/50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white"
-            style={{ animation: "glow-pulse 2.4s ease-in-out infinite" }} />
-        </div>
+        <img src="/logo.png" alt="PhantmOS Logo" className="w-10 h-10 object-contain" />
         <span className="text-white text-sm font-extrabold tracking-[0.22em] uppercase"
           style={{ fontFamily: "Unbounded, sans-serif" }}>PhantmOS</span>
       </div>
@@ -249,105 +245,75 @@ function Nav() {
   );
 }
 
-/* ─── AI Core ─────────────────────────────────────────────────────────────── */
-function AICore({ mx, my }: { mx: number; my: number }) {
+/* ─── AI Video Canvas (Full Screen) ─────────────────────────────────────── */
+function HeroVideoCanvas({ scrollProgress }: { scrollProgress: any }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imagesRef = useRef<HTMLImageElement[]>([]);
+  const frameCount = 150;
+
+  // Add a spring to smooth out scroll jitter
+  const smoothProgress = useSpring(scrollProgress, {
+    stiffness: 80,
+    damping: 25,
+    restDelta: 0.001
+  });
+
+  // Preload images
+  useEffect(() => {
+    const loadedImages: HTMLImageElement[] = [];
+    for (let i = 1; i <= frameCount; i++) {
+      const img = new Image();
+      const frameNum = i.toString().padStart(4, '0');
+      img.src = `/hero-frames/frame_${frameNum}.webp`;
+      loadedImages.push(img);
+    }
+    imagesRef.current = loadedImages;
+  }, []);
+
+  // Update canvas using requestAnimationFrame for 100% reliable rendering
+  useEffect(() => {
+    let rafId: number;
+    let lastDrawnIndex = -1;
+
+    const render = () => {
+      // Get the absolute latest smoothed scroll progress directly
+      const latest = smoothProgress.get();
+      const frameIndex = Math.min(frameCount - 1, Math.max(0, Math.floor(latest * frameCount)));
+      const img = imagesRef.current[frameIndex];
+      
+      // If the image is loaded and we haven't drawn this frame yet, draw it!
+      if (img && img.complete && frameIndex !== lastDrawnIndex) {
+        console.log("Currently drawing frame:", frameIndex);
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (canvas && ctx) {
+          // Initialize canvas size on first draw if needed
+          if (canvas.width !== 1024) {
+            canvas.width = 1024;
+            canvas.height = 576;
+          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          lastDrawnIndex = frameIndex;
+        }
+      }
+      
+      // Keep checking continuously. This guarantees the image will be drawn the millisecond it finishes loading.
+      rafId = requestAnimationFrame(render);
+    };
+    
+    rafId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(rafId);
+  }, [smoothProgress]);
+
   return (
-    <div className="relative w-[540px] h-[540px] select-none"
-      style={{
-        perspective: "1100px",
-        transformStyle: "preserve-3d",
-        transform: `rotateX(${my * 9}deg) rotateY(${mx * 9}deg)`,
-        transition: "transform 0.18s cubic-bezier(0.23,1,0.32,1)",
-      }}>
-
-      {/* Ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[440px] h-[440px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 68%)", filter: "blur(4px)" }} />
-
-      {/* Ring 1 — equatorial, CW */}
-      <div className="absolute ring-1" style={{
-        top: "50%", left: "50%",
-        width: "390px", height: "390px", borderRadius: "50%",
-        border: "1px solid rgba(255,255,255,0.18)",
-      }} />
-      {/* Ring 2 — outer, CCW */}
-      <div className="absolute ring-2" style={{
-        top: "50%", left: "50%",
-        width: "475px", height: "475px", borderRadius: "50%",
-        border: "1px solid rgba(255,255,255,0.07)",
-      }} />
-      {/* Ring 3 — tilted */}
-      <div className="absolute ring-3" style={{
-        top: "50%", left: "50%",
-        width: "310px", height: "310px", borderRadius: "50%",
-        border: "1px solid rgba(255,255,255,0.13)",
-      }} />
-
-      {/* Equatorial orbit nodes */}
-      {(["node-eq-0", "node-eq-1", "node-eq-2"] as const).map((cls, i) => (
-        <div key={cls} className={`absolute ${cls}`} style={{ top: "50%", left: "50%" }}>
-          <div style={{
-            position: "absolute", width: "9px", height: "9px", borderRadius: "50%",
-            background: "white", transform: "translate(-50%,-50%)",
-            boxShadow: "0 0 12px rgba(255,255,255,0.9), 0 0 24px rgba(255,255,255,0.4)",
-          }} />
-        </div>
-      ))}
-
-      {/* Tilted orbit nodes */}
-      {(["node-tl-0", "node-tl-1", "node-tl-2"] as const).map((cls) => (
-        <div key={cls} className={`absolute ${cls}`} style={{ top: "50%", left: "50%" }}>
-          <div style={{
-            position: "absolute", width: "6px", height: "6px", borderRadius: "50%",
-            background: "rgba(255,255,255,0.65)", transform: "translate(-50%,-50%)",
-            boxShadow: "0 0 8px rgba(255,255,255,0.6)",
-          }} />
-        </div>
-      ))}
-
-      {/* Central orb */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full"
-        style={{
-          background: "radial-gradient(circle at 36% 32%, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.38) 38%, rgba(255,255,255,0.06) 68%, transparent 100%)",
-          boxShadow: "0 0 50px rgba(255,255,255,0.22), 0 0 100px rgba(255,255,255,0.09), 0 0 200px rgba(255,255,255,0.04)",
-        }} />
-      {/* Glass shell overlay */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[136px] h-[136px] rounded-full"
-        style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.18)" }} />
-
-      {/* SVG connection lines */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.28 }}>
-        {[
-          [270, 270, 400, 155], [270, 270, 425, 315], [270, 270, 135, 160],
-          [270, 270, 115, 330], [270, 270, 278, 78],  [270, 270, 262, 455],
-        ].map(([x1, y1, x2, y2], i) => (
-          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"
-            strokeDasharray="4 8"
-            style={{ animation: `dash-flow ${6 + i}s linear infinite`, animationDelay: `${-i * 1.2}s` }} />
-        ))}
-      </svg>
-
-      {/* Floating agent label chips */}
-      {[
-        { x: "74%", y: "12%", label: "Scout",   delay: "0s" },
-        { x: "84%", y: "50%", label: "Tailor",  delay: "0.6s" },
-        { x: "68%", y: "86%", label: "Apply",   delay: "1.2s" },
-        { x: "10%", y: "82%", label: "Track",   delay: "1.8s" },
-        { x: "4%",  y: "44%", label: "Match",   delay: "2.4s" },
-        { x: "16%", y: "10%", label: "Analyze", delay: "3s" },
-      ].map(({ x, y, label, delay }) => (
-        <div key={label} className="absolute glass"
-          style={{
-            left: x, top: y, padding: "5px 11px", borderRadius: "20px",
-            fontSize: "10px", letterSpacing: "0.14em", color: "rgba(255,255,255,0.65)",
-            fontFamily: "JetBrains Mono, monospace",
-            animation: `float-b 3.5s ease-in-out infinite`,
-            animationDelay: delay,
-          }}>
-          {label}
-        </div>
-      ))}
+    <div className="absolute inset-0 z-0 w-full h-full overflow-hidden pointer-events-none">
+      {/* Full opacity video for maximum visibility */}
+      <canvas ref={canvasRef} className="w-full h-full object-cover opacity-100" />
+      
+      {/* Subtle left gradient just enough to make the left-aligned text readable, without washing out the rest of the video */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent w-3/4" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black opacity-60" />
     </div>
   );
 }
@@ -470,7 +436,7 @@ function App() {
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const [activeStep, setActiveStep] = useState(0);
   const heroRef   = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end end"] });
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 
   useEffect(() => {
@@ -488,27 +454,35 @@ function App() {
   }, []);
 
   return (
-    <div className="bg-black text-white min-h-screen overflow-x-hidden" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
+    <div className="bg-black text-white min-h-screen overflow-clip" style={{ fontFamily: "Plus Jakarta Sans, sans-serif" }}>
       <GlobalStyles />
       <Nav />
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden px-6 pt-24">
-        <ParticleCanvas count={100} />
+      <section ref={heroRef} className="relative" style={{ height: "300vh" }}>
+        <div className="sticky top-0 h-screen w-full flex items-center overflow-hidden px-6 pt-24">
+        
+        {/* Full Screen Background Video Canvas */}
+        <HeroVideoCanvas scrollProgress={scrollYProgress} />
 
-        {/* Scan line */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div style={{
-            position: "absolute", width: "100%", height: "1px",
-            background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.09) 50%, transparent 100%)",
-            animation: "scan-down 9s linear infinite",
-          }} />
+        {/* Existing background elements (z-index between canvas and text) */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <ParticleCanvas count={100} />
+
+          {/* Scan line */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div style={{
+              position: "absolute", width: "100%", height: "1px",
+              background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.09) 50%, transparent 100%)",
+              animation: "scan-down 9s linear infinite",
+            }} />
+          </div>
+
+          {/* Central glow (disabled so it doesn't wash out the video) */}
+          <div className="hidden" />
         </div>
 
-        {/* Central glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(255,255,255,0.035) 0%, transparent 68%)" }} />
-
+        {/* We keep the grid but leave the right column empty so the text stays aligned left */}
         <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left */}
           <div>
@@ -560,20 +534,18 @@ function App() {
             </motion.div>
           </div>
 
-          {/* Right — AI Core */}
-          <motion.div initial={{ opacity: 0, scale: 0.82 }} animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.42, duration: 1.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center justify-center">
-            <AICore mx={mouse.x} my={mouse.y} />
-          </motion.div>
+          {/* Right — Now empty to let the background shine through */}
+          <div className="hidden lg:block w-full h-full pointer-events-none" />
         </div>
 
         {/* Scroll cue */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
           <span className="text-white/25 text-[10px] tracking-[0.28em]" style={{ fontFamily: "JetBrains Mono, monospace" }}>SCROLL</span>
           <div className="w-px h-10" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.3), transparent)", animation: "float-b 2.2s ease-in-out infinite" }} />
         </motion.div>
+        
+        </div>
       </section>
 
       {/* ── AI WORKFORCE ─────────────────────────────────────────────────────── */}
