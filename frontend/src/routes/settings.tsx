@@ -44,9 +44,20 @@ function SettingsPage() {
         scoring: { ...defaultSettings.scoring, ...(data.scoring || {}) },
         scheduler: { ...defaultSettings.scheduler, ...(data.scheduler || {}) },
         notifications: { ...defaultSettings.notifications, ...(data.notifications || {}) },
+        telegram_connected: data.telegram_connected || false,
       });
     }
   }, [data]);
+
+  // Fetch the dynamic, correct Telegram Bot deep link
+  const { data: telegramLinkData } = useQuery({
+    queryKey: ["telegram-link"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/telegram/link");
+      if (!res.ok) return { link: "" };
+      return res.json();
+    },
+  });
 
   const saveMutation = useMutation({
     mutationFn: async (updatedSettings: any) => {
@@ -392,7 +403,7 @@ function SettingsPage() {
                         </div>
                       ) : (
                         <a
-                          href={`https://t.me/siro_command_center_bot?start=${user.id}`}
+                          href={telegramLinkData?.link || `https://t.me/placeholder_bot?start=${user.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="whitespace-nowrap px-4 py-2 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-lg font-medium transition-colors shadow-lg shadow-[#0088cc]/20"
