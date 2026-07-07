@@ -167,19 +167,13 @@ async def score_job(
 #  Batch scorer — run Stage 2 for all "Found" leads
 # ─────────────────────────────────────────────────────────
 
-async def run_scoring(profile: dict) -> dict:
+async def run_scoring(profile: dict, manual_query: str = None) -> dict:
     """
     Score all leads with status='Found'.
-    Updates each lead in Supabase with match_score, score_band, score_breakdown.
-    REJECT-band leads are updated to status='Dismissed' immediately.
-
-    Args:
-        profile: master user profile dict from DB (must have resume_data).
-
-    Returns:
-        Summary dict with band counts.
+    manual_query: when provided (manual pipeline trigger), use it to build target_roles
+                  so the title signal reflects what was actually searched — not the
+                  user's saved profile preferences.
     """
-    logger.info("=== Stage 2: Embedding & Matching started ===")
 
     # 1. Fetch resume & skills
     resume_data  = profile.get("resume_data") or {}
@@ -222,9 +216,16 @@ async def run_scoring(profile: dict) -> dict:
     blacklist_keywords = [k.lower() for k in blacklist_keywords if k]
     
     target_roles = scoring_settings.get("target_roles") or []
-    if not target_roles:
-        target_roles = ["developer", "engineer"] # safe fallback
-        
+    # KEY FIX: if a manual query was used (e.g. "cloud engineer"),
+    # override target_roles with the search terms so the title signal
+    # scores cloud jobs high, not the profile's saved ML/AI preferences.
+    if manual_query:
+        target_roles = [manual_query]
+        logger.info(f"Scoring: title signal overridden by manual_query='{manual_query}'")
+    elif not target_roles:
+        target_roles = ["developer", "engineer"]  # safe fallback
+
+    logger.info("=== Stage 2: Embedding & Matching started ===")
     telegram_threshold = scoring_settings.get("telegram_threshold", 60.0)
         
     counts = {"hot": 0, "warm": 0, "cold": 0, "reject": 0}

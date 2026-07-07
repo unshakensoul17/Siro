@@ -1,85 +1,96 @@
 """
-intelligence/keyword_filter.py — PhantmOS v2.0 (BM25 Edition)
+intelligence/keyword_filter.py — PhantmOS v3.0
 
-Uses BM25 search scoring to pre-filter harvested jobs based on relevance,
-dropping completely unrelated jobs before they hit the database.
+BM25 relevance pre-filter for job harvest results.
+Enforces TWO gates before a job reaches the database:
+  Gate 1 — BM25 score > 25th-percentile of corpus scores (statistical relevance)
+  Gate 2 — Core domain words from the query MUST appear in the job TITLE
+            (prevents "Blockchain Engineer" slipping through a "cloud engineer" search
+             just because its description mentions "cloud infrastructure")
 """
 from rank_bm25 import BM25Okapi
 from core.logger import get_logger
 import re
 
-# Hardcoded fallback lists (formerly in config.py)
 EXCLUDE_KEYWORDS = ["clearance", "polygraph", "ts/sci", "secret clearance", "us citizen only"]
 REQUIRED_KEYWORDS = []
 
+# Words too generic to be "domain" words
+_GENERIC_TOKENS = {
+    "engineer", "developer", "manager", "remote", "senior", "junior",
+    "specialist", "analyst", "intern", "lead", "staff", "head",
+    "associate", "principal", "architect",
+}
+
 logger = get_logger(__name__)
 
+
 def tokenize(text: str) -> list[str]:
-    """Simple lowercasing and alphanumeric tokenization."""
-    if not text: return []
+    """Lowercase alphanumeric tokenization."""
+    if not text:
+        return []
     return re.findall(r'\b\w+\b', text.lower())
+
 
 def filter_jobs_by_relevance(jobs: list[dict], search_query: str = None) -> list[dict]:
     """
-    Applies BM25 scoring across the corpus of fetched jobs.
-    Returns only jobs that score > 0 (meaning they have at least some relevance).
+    Two-gate relevance filter:
+      Gate 1: BM25 score must exceed the 25th-percentile of the corpus
+              (top 75% most BM25-relevant jobs pass).
+      Gate 2: At least one *core* domain word from the query must appear
+              in the job TITLE (not just description).
+
+    Falls back to blacklist-only filtering when no search_query is given.
     """
     if not jobs:
         return []
-        
-    # If no search query is provided, fallback to basic blacklist filtering
+
     if not search_query:
         return [j for j in jobs if _passes_blacklist(j)]
 
-    # 1. Build the corpus
+    tokenized_query = tokenize(search_query)
+
+    # Core tokens: domain-specific words only (strip generic seniority/role words)
+    core_tokens = {t for t in tokenized_query if t not in _GENERIC_TOKENS}
+    if not core_tokens:
+        core_tokens = set(tokenized_query)
+
+    # BM25 corpus: title triple-weighted so title matches dominate
     tokenized_corpus = []
     for job in jobs:
-        # Title is heavily weighted in typical search, so we duplicate it in the corpus text
         title = job.get("title", "")
         desc = job.get("raw_description", "") or job.get("description", "")
         combined = f"{title} {title} {title} {desc}"
         tokenized_corpus.append(tokenize(combined))
-        
-    # 2. Initialize BM25
+
     bm25 = BM25Okapi(tokenized_corpus)
-    
-    # 3. Score the query
-    tokenized_query = tokenize(search_query)
     scores = bm25.get_scores(tokenized_query)
-    
-    # 4. Filter jobs based on score and blacklist
+
+    # Gate 1 threshold: 25th percentile of non-zero scores
+    non_zero = sorted(s for s in scores if s > 0)
+    if not non_zero:
+        return []
+    threshold = non_zero[max(0, int(len(non_zero) * 0.25) - 1)]
+
     filtered_jobs = []
-    # If it's exactly 0, it means NONE of the query words appeared.
-    threshold = 0.0 
-    
-    # Extract core domain words (ignore generic titles) to enforce strictness
-    core_tokens = {t for t in tokenized_query if t not in ('engineer', 'developer', 'manager', 'remote', 'senior', 'junior', 'specialist', 'analyst')}
-    if not core_tokens:
-        core_tokens = set(tokenized_query)
-        
     for i, job in enumerate(jobs):
-        score = scores[i]
-        if score > threshold:
-            # Additionally, enforce that at least one core domain word exists in the job
-            title = job.get("title", "")
-            desc = job.get("raw_description", "") or job.get("description", "")
-            combined_tokens = set(tokenize(f"{title} {desc}"))
-            
-            if core_tokens.intersection(combined_tokens):
-                if _passes_blacklist(job):
-                    filtered_jobs.append(job)
-        else:
-            pass # Silently drop, it's irrelevant
-            
+        if scores[i] <= threshold:
+            continue  # Gate 1 failed
+
+        # Gate 2: core domain word MUST be in the job TITLE
+        title_tokens = set(tokenize(job.get("title", "")))
+        if not core_tokens.intersection(title_tokens):
+            continue  # Gate 2 failed — e.g. "Blockchain Eng" for "cloud engineer" search
+
+        if _passes_blacklist(job):
+            filtered_jobs.append(job)
+
     return filtered_jobs
 
+
 def _passes_blacklist(job: dict) -> bool:
-    """Hard exclusions — reject immediately if blacklist words are found."""
+    """Hard exclusions — reject if any blacklist keyword appears in title or description."""
     title = job.get("title", "")
     desc = job.get("raw_description", "") or job.get("description", "")
     combined = f"{title} {desc}".lower()
-    
-    for kw in EXCLUDE_KEYWORDS:
-        if kw.lower() in combined:
-            return False
-    return True
+    return not any(kw.lower() in combined for kw in EXCLUDE_KEYWORDS)

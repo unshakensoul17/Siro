@@ -175,7 +175,7 @@ async def process_pipeline(manual_query: str = None, target_user_id: str = None)
         # ── STAGE 2: Ranking Agent ────────────────────────────────────────────
         try:
             logger.info(f"User {user_id}: >>> STAGE 2: Ranking Agent")
-            user_summary["scoring"] = await ranking_agent.run(profile)
+            user_summary["scoring"] = await ranking_agent.run(profile, manual_query=manual_query)
         except Exception as e:
             logger.error(f"User {user_id} Stage 2 FAILED: {e}")
             user_summary["scoring"] = {"error": str(e)}
