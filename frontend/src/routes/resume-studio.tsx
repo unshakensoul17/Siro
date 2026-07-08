@@ -87,16 +87,42 @@ function ResumeStudioPage() {
     setIsSaving(true);
     try {
       const payload = viewMode === "json" ? JSON.parse(jsonText) : profile;
+      
+      // Validation for mandatory LinkedIn and GitHub links
+      const socials = payload?.cv?.social_networks || [];
+      const linkedin = socials.find((s: any) => s.network?.toLowerCase() === "linkedin");
+      const github = socials.find((s: any) => s.network?.toLowerCase() === "github");
+      
+      const isMocked = (val: string) => !val || val === "Link" || val === "null" || val.trim() === "";
+      
+      if (!linkedin || isMocked(linkedin.url)) {
+        throw new Error("LinkedIn link is mandatory. Please provide a valid LinkedIn URL before saving.");
+      }
+      
+      const liUrl = linkedin.url.toLowerCase();
+      if (!liUrl.startsWith("https://linkedin.com/") && !liUrl.startsWith("https://www.linkedin.com/")) {
+        throw new Error("Invalid LinkedIn link. It must start with https://linkedin.com/ or https://www.linkedin.com/");
+      }
+
+      if (!github || isMocked(github.url)) {
+        throw new Error("GitHub link is mandatory. Please provide a valid GitHub URL before saving.");
+      }
+
+      const ghUrl = github.url.toLowerCase();
+      if (!ghUrl.startsWith("https://github.com/") && !ghUrl.startsWith("https://www.github.com/")) {
+        throw new Error("Invalid GitHub link. It must start with https://github.com/ or https://www.github.com/");
+      }
+
       const res = await apiFetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume_data: payload }),
       });
-      if (!res.ok) throw new Error("Failed to save");
+      if (!res.ok) throw new Error("Failed to save on server");
       toast.success("Profile Saved Successfully!");
       if (viewMode === "json") setProfile(payload);
     } catch (err: any) {
-      toast.error("Save Failed: " + err.message);
+      toast.error(err.message.includes("mandatory") || err.message.includes("Invalid") ? err.message : "Save Failed: " + err.message);
     }
     setIsSaving(false);
   };
@@ -117,6 +143,52 @@ function ResumeStudioPage() {
         if (data.status === "success" && data.profile) {
             setProfile(data.profile);
             toast.success("Resume uploaded successfully!");
+            
+            // Validate for mocked/missing data
+            const warnings: string[] = [];
+            const cv = data.profile.cv || {};
+            
+            // Check socials
+            const socials = cv.social_networks || [];
+            const linkedin = socials.find((s: any) => s.network?.toLowerCase() === "linkedin");
+            if (!linkedin || !linkedin.url || linkedin.url === "Link" || linkedin.url === "null") {
+              warnings.push("LinkedIn URL is missing or mocked.");
+            }
+            const github = socials.find((s: any) => s.network?.toLowerCase() === "github");
+            if (!github || !github.url || github.url === "Link" || github.url === "null") {
+              warnings.push("GitHub URL is missing or mocked.");
+            }
+            
+            // Check education
+            const education = cv.sections?.education || [];
+            if (education.length === 0) {
+              warnings.push("Education section is empty.");
+            } else {
+              education.forEach((edu: any, i: number) => {
+                if (!edu.institution || edu.institution === "null") warnings.push(`Education #${i+1} is missing an institution.`);
+                if (edu.degree === "null") warnings.push(`Education #${i+1} degree is marked as "null".`);
+              });
+            }
+
+            // Check projects
+            const projects = cv.sections?.projects || [];
+            projects.forEach((proj: any, i: number) => {
+              if (proj.url === "null" || proj.url === "Link") {
+                warnings.push(`Project #${i+1} has a mocked URL.`);
+              }
+            });
+
+            if (warnings.length > 0) {
+              toast.warning(
+                <div>
+                  <p className="font-bold mb-1">Please review these fields:</p>
+                  <ul className="list-disc pl-4 text-xs space-y-1">
+                    {warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>,
+                { duration: 10000 }
+              );
+            }
         }
         setIsUploading(false);
       } catch (err: any) {
