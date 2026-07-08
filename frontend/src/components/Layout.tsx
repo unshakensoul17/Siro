@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard, Search, FileText, Building2, Send,
-  Settings, Activity, ChevronRight, Cpu, Wifi, LogOut, RefreshCw,
+  Settings, Activity, ChevronRight, Cpu, Wifi, LogOut, RefreshCw, Users,
 } from "lucide-react";
 import { AuthGuard } from "./AuthGuard";
 import { useAuth } from "../hooks/useAuth";
@@ -56,6 +56,7 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen?: boolean; setMobil
     { icon: Building2, label: "Company Research", path: "/company-research" },
     { icon: Send, label: "Applications", badge: activeApps > 0 ? activeApps.toString() : null, path: "/applications" },
     { icon: Settings, label: "Settings", path: "/settings" },
+    { icon: Users, label: "Contact Us", path: "/contact" },
   ];
 
   return (
