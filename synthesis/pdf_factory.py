@@ -56,6 +56,11 @@ def _sanitize_cv_data(cv: dict) -> dict:
                     if "bulletPoints" in item and "highlights" not in item:
                         item["highlights"] = item.pop("bulletPoints")
                         
+    # 0.5. Remove unknown root fields that might have leaked into `cv`
+    for unknown_key in ["target_role", "job_id", "status", "score"]:
+        if unknown_key in cv:
+            del cv[unknown_key]
+                        
     # 1. Clean up social networks casing (RenderCV is strict)
     allowed_networks = {"LinkedIn", "GitHub", "GitLab", "Twitter", "Mastodon", "Website", "YouTube"}
     if "social_networks" in cv:
@@ -70,6 +75,7 @@ def _sanitize_cv_data(cv: dict) -> dict:
         cv["social_networks"] = valid_socials
         
     # 2. Strip out empty date fields and clean up rogue newlines in short strings
+    import re
     if "sections" in cv:
         for sec_name, entries in cv["sections"].items():
             if isinstance(entries, list):
@@ -82,6 +88,12 @@ def _sanitize_cv_data(cv: dict) -> dict:
                                 # If it's empty, or has no digits and isn't "present", it's invalid for RenderCV
                                 if not val or (not any(c.isdigit() for c in val) and val != "present"):
                                     del entry[date_field]
+                                elif re.match(r"^\d{4}-\d{2}$", val):
+                                    # If it looks like YYYY-MM but MM is > 12 (e.g. 2024-27), RenderCV fails.
+                                    # We replace "-" with " - " to force it to be treated as a string range.
+                                    parts = val.split("-")
+                                    if len(parts) == 2 and int(parts[1]) > 12:
+                                        entry[date_field] = f"{parts[0]} - {parts[1]}"
                         # Clean short string fields to prevent Typst overlap
                         for short_field in ["institution", "area", "degree", "company", "position", "location", "name"]:
                             if short_field in entry and isinstance(entry[short_field], str):
@@ -97,12 +109,38 @@ def _sanitize_cv_data(cv: dict) -> dict:
                             else:
                                 entry["area"] = degree_val
                             del entry["degree"]
+                            
+                        # Merge "technologies" into "highlights"
+                        if "technologies" in entry and isinstance(entry["technologies"], list):
+                            if "highlights" not in entry or not isinstance(entry["highlights"], list):
+                                entry["highlights"] = []
+                            techs = ", ".join(str(t) for t in entry["technologies"])
+                            entry["highlights"].append(f"Technologies: {techs}")
+                            
+                        # Delete any custom fields that are lists/dicts to prevent RenderCV TypeError during string substitution
+                        allowed_complex_fields = {"highlights"}
+                        keys_to_delete = []
+                        for k, v in entry.items():
+                            if k not in allowed_complex_fields and (isinstance(v, list) or isinstance(v, dict)):
+                                keys_to_delete.append(k)
+                        for k in keys_to_delete:
+                            del entry[k]
 
         # 3. Strip out entirely empty sections (like Experience: [])
         empty_sections = [sec for sec, entries in cv["sections"].items() if isinstance(entries, list) and not entries]
         for sec in empty_sections:
             del cv["sections"][sec]
             
+    # 4. Fix phone number validation (RenderCV requires +countrycode)
+    if "phone" in cv:
+        phone_str = str(cv["phone"]).strip()
+        if not phone_str.startswith("+"):
+            digits = "".join(filter(str.isdigit, phone_str))
+            if len(digits) == 10:
+                cv["phone"] = f"+91{digits}"
+            else:
+                del cv["phone"]
+                
     return cv
 
 def _adapt_and_render_sync(resume_data: dict, theme: str) -> bytes:
@@ -126,11 +164,17 @@ def _adapt_and_render_sync(resume_data: dict, theme: str) -> bytes:
             
         # Run RenderCV via subprocess (safe and decoupled)
         # rendercv render output defaults to ./rendercv_output
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        
         res = subprocess.run(
             ["rendercv", "render", str(tmp_path)],
             cwd=tmpdir,
             capture_output=True,
-            text=True
+            text=True,
+            env=env,
+            encoding="utf-8"
         )
         
         if res.returncode != 0:
