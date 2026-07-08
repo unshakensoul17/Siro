@@ -8,4 +8,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     flowType: 'pkce',
   },
+  global: {
+    WebSocket: WebSocket,
+  },
+  realtime: {
+    transport: WebSocket,
+  },
 });
